@@ -242,15 +242,15 @@ def _py7z_encrypted(parts: list[Path]) -> bool:
 
 def extract(parts: list[Path], dst: Path, pw: str | None) -> str:
     """Extract with the known password, then with none. Returns the password that worked."""
-    tried = []
+    existed = dst.exists()                       # never delete a folder we did not create
     for candidate in ([pw] if pw else []) + [""]:
         res = _extract_once(parts, dst, candidate)
         if res is None:
             return candidate
-        tried.append(res)
+        if not existed:
+            shutil.rmtree(dst, ignore_errors=True)
         if res != "password":
             raise RuntimeError(res)
-        shutil.rmtree(dst, ignore_errors=True)
     raise NeedPassword()
 
 
@@ -350,6 +350,47 @@ def split_file(path: Path, part_bytes: int) -> list[Path]:
     return parts
 
 
+def create_archive(targets: list[Path], out_dir: Path, pw: str, split_mb: int) -> list[Path]:
+    """Encrypted 7z of targets in out_dir: YYYYMMDD-HHMMSS, or .001/.002/... over split_mb (0 = never)."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    total = sum(f.stat().st_size for t in targets for f in ([t] if t.is_file() else t.rglob("*")) if f.is_file())
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    base, i = out_dir / stamp, 2
+    while any(out_dir.glob(base.name + "*")):
+        base, i = out_dir / f"{stamp}-{i}", i + 1
+    tmp = base.with_name(base.name + ".7z")
+    limit = split_mb * 1024 * 1024
+
+    if find_7z():
+        args = ["a", "-t7z", f"-p{pw}", "-mhe=on", "-mx=5"] + ([f"-v{split_mb}m"] if split_mb > 0 and total > limit else [])
+        rc, err = run_7z(args + [str(tmp)] + [str(t) for t in targets])
+        if rc != 0:
+            for f in out_dir.glob(tmp.name + "*"):
+                f.unlink()
+            raise RuntimeError(err or f"7z exit {rc}")
+        made = sorted(out_dir.glob(tmp.name + ".[0-9][0-9][0-9]")) or [tmp]
+    else:
+        py7zr = need_module("py7zr")
+        try:
+            with py7zr.SevenZipFile(tmp, "w", password=pw, header_encryption=True) as z:
+                for t in targets:
+                    z.writeall(t, arcname=t.name) if t.is_dir() else z.write(t, arcname=t.name)
+        except Exception:
+            tmp.unlink(missing_ok=True)
+            raise
+        made = split_file(tmp, limit) if split_mb > 0 and tmp.stat().st_size > limit else [tmp]
+
+    if len(made) == 1:                      # one file -> no extension
+        made[0].rename(base)
+        return [base]
+    result = []                             # parts -> name.001, name.002, ...
+    for f in made:
+        dest = base.with_name(f"{base.name}.{f.name[-3:]}")
+        f.rename(dest)
+        result.append(dest)
+    return result
+
+
 def cmd_zip(a) -> int:
     pw = known_password(a.password)
     if not pw:
@@ -366,42 +407,13 @@ def cmd_zip(a) -> int:
             targets.append(p)
     split_mb = a.split_mb if a.split_mb is not None else int(load_config().get("split_mb", DEFAULT_SPLIT_MB))
     out_dir = Path(a.out).expanduser().resolve() if a.out else default_zip_dir()
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     total = sum(f.stat().st_size for t in targets for f in ([t] if t.is_file() else t.rglob("*")) if f.is_file())
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    base, i = out_dir / stamp, 2
-    while any(out_dir.glob(base.name + "*")):
-        base, i = out_dir / f"{stamp}-{i}", i + 1
-    tmp = base.with_name(base.name + ".7z")
     print(f"{len(targets)} item(s), {total / 1e6:.1f} MB before compression")
-
-    split = split_mb > 0 and total > split_mb * 1024 * 1024
-    if find_7z():
-        args = ["a", "-t7z", f"-p{pw}", "-mhe=on", "-mx=5"] + ([f"-v{split_mb}m"] if split else [])
-        rc, err = run_7z(args + [str(tmp)] + [str(t) for t in targets])
-        if rc != 0:
-            for f in out_dir.glob(tmp.name + "*"):
-                f.unlink()
-            print(f"FAILED: {err}")
-            return 1
-        made = sorted(out_dir.glob(tmp.name + ".[0-9][0-9][0-9]")) or [tmp]
-    else:
-        py7zr = need_module("py7zr")
-        with py7zr.SevenZipFile(tmp, "w", password=pw, header_encryption=True) as z:
-            for t in targets:
-                z.writeall(t, arcname=t.name) if t.is_dir() else z.write(t, arcname=t.name)
-        made = split_file(tmp, split_mb * 1024 * 1024) if split_mb > 0 and tmp.stat().st_size > split_mb * 1024 * 1024 else [tmp]
-
-    if len(made) == 1:                      # one file -> no extension
-        made[0].rename(base)
-        result = [base]
-    else:                                   # parts -> name.001, name.002, ...
-        result = []
-        for f in made:
-            dest = base.with_name(f"{base.name}.{f.name[-3:]}")
-            f.rename(dest)
-            result.append(dest)
+    try:
+        result = create_archive(targets, out_dir, pw, split_mb)
+    except Exception as e:  # noqa: BLE001
+        print(f"FAILED: {e}")
+        return 1
     for f in result:
         print(f"  {f.stat().st_size / 1e6:8.1f} MB  {f}")
     if len(result) > 1:
