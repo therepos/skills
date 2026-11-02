@@ -1,0 +1,33 @@
+{
+  "client": "Example Holdings Pte Ltd",
+  "process": "Commercial Leasing",
+  "period": "1 April 2026 to 31 March 2027",
+  "prefix": "A",
+  "prepared_by": "",
+  "reviewed_by": "",
+  "packs": ["commercial-leasing"],
+  "modules": [],
+  "exclude": [],
+  "tokens": {
+    "CLIENT_SHORT": "EHPL",
+    "DEPARTMENT": "Leasing",
+    "HEAD_OF_DEPARTMENT": "Head of Leasing",
+    "MANAGER": "Leasing Manager",
+    "FINANCE": "Finance",
+    "FINANCE_PREPARER": "Accounts Executive",
+    "FINANCE_REVIEWER": "Finance Manager",
+    "HEAD_OF_FINANCE": "Chief Financial Officer",
+    "CEO": "CEO",
+    "IT": "IT",
+    "SYSTEM": "the property management system",
+    "ERP": "the general ledger system",
+    "FACILITIES": "Facilities Management",
+    "CURRENCY": "S$"
+  },
+  "prior_year": {
+    "risk.cl_contracting": "In the prior year we raised Observation 2.2 (Moderate): insurance policies were not on file for three of the five new leases sampled. Management committed to track insurance in the property management system."
+  },
+  "background_additions": {
+    "control_environment": "In the period the company migrated to a new version of the property management system, and the Leasing team had one change of staff."
+  }
+}

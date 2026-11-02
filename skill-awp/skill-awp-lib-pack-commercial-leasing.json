@@ -1,0 +1,1436 @@
+{
+ "library": "pack",
+ "process": "commercial-leasing",
+ "version": 1,
+ "updated": "2026-10-28",
+ "description": "Commercial leasing of retail, F&B, office, advertising and similar space: tenant sourcing and contracting, renewals and closures, security deposits, billing (fixed, turnover-based and adjustments), receivables and collections. Generic: no client, tenant, system or amount is named.",
+ "token_defaults": {
+  "{COUNTERPARTY}": "tenant",
+  "{COUNTERPARTIES}": "tenants",
+  "{COUNTERPARTY_TITLE}": "Tenant",
+  "{AGREEMENT}": "Tenancy Agreement",
+  "{MASTER_FILE}": "tenant master file",
+  "{DEPOSIT_MONTHS}": "three",
+  "{DEPOSIT_MONTHS_N}": "3",
+  "{REFUND_DAYS}": "90",
+  "{REFUND_FROM}": "the lease end date",
+  "{TRANSACTION_TYPES}": "lease pricing above and below budget, the selection of tenants, the signing of Letters of Offer and Tenancy Agreements, lease variations, rent relief and waivers, credit notes, voids, deposit refunds, forfeitures and write-offs",
+  "{PROCESS_ACTIVITIES}": "tenant sourcing, the rental approval paper, the creation and activation of records in {SYSTEM}, the preparation of the Letter of Offer, the confirmation of the security deposit, the refund form and requests for credit notes",
+  "{SUBLEDGER}": "accounts receivable",
+  "{VARIANCE_SUBJECT}": "total charges and in the fixed rent of each lease",
+  "{RECON_BALANCES}": "rental revenue, accounts receivable and security deposits",
+  "{FACILITIES}": "Facilities Management",
+  "{PROCESS}": "commercial leasing"
+ },
+ "sheet_map": {
+  "mod.master_file": "tenant_lease",
+  "mod.variance_analysis": "billing"
+ },
+ "denylist": [],
+ "sheets": [
+  {
+   "id": "tenant_lease",
+   "title": "Tenant and lease management",
+   "index_text": "Tenant and lease management, covering tenant sourcing and evaluation, rental rate review, lease contracting, renewals and modifications, fit-out and make-good, and the tenant master file",
+   "background": "Tenants are sourced when a unit becomes vacant or new space becomes available. The {DEPARTMENT} team compiles a list of target companies whose business fits the property, and the {HEAD_OF_DEPARTMENT} selects the companies to approach; advertising and event spaces may be marketed through an appointed agency. Prospective tenants submit their company profile and business registration documents, which {FINANCE} reviews for related parties and financial standing. The {MANAGER} researches market rental rates and compares the proposed rate with the budget rent approved by the Board, and the rental approval paper is approved in accordance with the Delegation of Authority. The Letter of Offer and {AGREEMENT} are prepared on the template drawn up by the solicitors, reviewed by the {HEAD_OF_DEPARTMENT}, signed by the authorised signatory and stamped. {SYSTEM} alerts the team before a lease expires, and renewals are approved through a renewal paper. {FACILITIES} manages the handover of units, inspects fit-out works and carries out the joint inspection when a tenant leaves."
+  },
+  {
+   "id": "deposits",
+   "title": "Security deposit management",
+   "index_text": "Security deposit management, covering collection, monitoring and refunds",
+   "background": "The {AGREEMENT} requires the tenant to place a security deposit equal to {DEPOSIT_MONTHS} months' rent, either by bank transfer or by way of a banker's guarantee. The {FINANCE_PREPARER} monitors the bank statement, checks the amount received against the Letter of Offer, posts the deposit in {SYSTEM} and confirms the receipt to {DEPARTMENT} by email. Original banker's guarantees are kept in safe custody by {DEPARTMENT}. When a tenant leaves, the {DEPARTMENT} staff prepares the refund deposit form, which lists the outstanding debts, the lease expiry and any breach of the {AGREEMENT}. The {MANAGER} reviews the form, the {HEAD_OF_DEPARTMENT} approves it, and {FINANCE} processes the refund within the timeline stated in the letter of expiry."
+  },
+  {
+   "id": "billing",
+   "title": "Billing and revenue management",
+   "index_text": "Billing and revenue management, covering invoices, receipts, additional rent, credit notes and waivers, and revenue recording",
+   "background": "{SYSTEM} generates the monthly fixed rent and service charge invoices from the charges recorded in the {MASTER_FILE} and posts the revenue and receivable entries automatically. The {FINANCE_PREPARER} checks the fixed rent billed against the Letter of Offer for new leases and against the previous month for existing leases, and the {FINANCE_REVIEWER} reviews the check. Where tenants pay by direct debit, the {FINANCE_PREPARER} generates the direct debit report after the invoices are issued, compares it with the bank statement and reverses any deduction that failed. Tenants on the gross turnover model submit their monthly sales figures by the deadline in the {AGREEMENT}; the {FINANCE_PREPARER} recomputes the additional rent, the {FINANCE_REVIEWER} approves it, and an ad hoc invoice is raised in {SYSTEM}. At the end of the tenant's financial year the additional rent is recomputed on the audited sales figures and any difference is settled by a debit or credit note approved in accordance with the Delegation of Authority."
+  },
+  {
+   "id": "receivables",
+   "title": "Receivables and collection management",
+   "index_text": "Receivables and collection management, covering the monitoring of accounts receivable, follow-up on arrears, provisions and write-offs",
+   "background": "The {FINANCE_PREPARER} generates the accounts receivable ageing report from {SYSTEM} every month and the {FINANCE_REVIEWER} reviews it. The {FINANCE_PREPARER} chases overdue tenants by email with {DEPARTMENT} copied, {DEPARTMENT} engages the tenant when the balance reaches the first escalation threshold, late payment interest is charged in accordance with the {AGREEMENT}, and a lease may be terminated with forfeiture of the security deposit when the balance passes the final threshold. The security deposit is the main protection against bad debts, so arrears are expected to be settled from the deposit before termination."
+  }
+ ],
+ "modules": [
+  {
+   "id": "mod.cl_sourcing",
+   "title": "Tenant sourcing, evaluation and approval",
+   "stage": "cycle",
+   "order": 10,
+   "scope_areas": [
+    "Check that tenant marketing, sourcing, evaluation and selection processes are established and that the selection of tenants is documented and approved.",
+    "Check that lease prices are reviewed against the approved budget and market benchmarks, and that the rates are endorsed by the appropriate authority."
+   ],
+   "walkthrough": {
+    "sheet": "tenant_lease",
+    "section_title": "Tenant sourcing, evaluation and approval",
+    "activities": [
+     {
+      "activity": "When a unit becomes vacant or new units become available, the {MANAGER} compiles a list of target companies against financial, non-financial and other criteria, and the {HEAD_OF_DEPARTMENT} selects the companies to approach.",
+      "performed_by": "{MANAGER} and {HEAD_OF_DEPARTMENT}",
+      "frequency": "As and when required",
+      "document": "Target lists, tender or expression of interest documents",
+      "control": {
+       "id": "ctrl.cl_target_list",
+       "text": "The target list documents the selection criteria and the justification for each company, and is reviewed by the {HEAD_OF_DEPARTMENT}.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "Interested companies submit their company profile and business registration documents. {FINANCE} reviews the documents for related parties and for financial standing, and emails the result to {DEPARTMENT}.",
+      "performed_by": "{FINANCE}",
+      "frequency": "As and when required",
+      "document": "{FINANCE} screening emails",
+      "control": {
+       "id": "ctrl.cl_screening",
+       "text": "The screening by {FINANCE} is documented and communicated to {DEPARTMENT} before the tenant is approved.",
+       "owner": "{FINANCE} Manager",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "The {MANAGER} researches current market rental rates, proposes the rate for the unit, and compares the proposed rate with the budget rent approved by the Board. The variance against budget is computed and included in the rental approval paper.",
+      "performed_by": "{MANAGER}",
+      "frequency": "As and when required",
+      "document": "Rental rate review papers and the Board-approved budget",
+      "control": {
+       "id": "ctrl.cl_benchmarking",
+       "text": "The benchmarking is documented and the variance against the approved budget rent is shown in the approval paper. Any rate below the approved budget requires the approval of the next higher authority under the Delegation of Authority.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "The rental approval paper, which sets out the tenant, the rental rate, the lease term, any gross turnover percentage and the security deposit, is approved in accordance with the Delegation of Authority.",
+      "performed_by": "{CEO} or {HEAD_OF_DEPARTMENT}",
+      "frequency": "As and when required",
+      "document": "Rental approval papers for the sampled leases",
+      "control": {
+       "id": "ctrl.cl_rental_approval",
+       "text": "The approval is evidenced by email or signature before the Letter of Offer is issued.",
+       "owner": "{CEO}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_sourcing",
+      "question": "How were the new tenants in the period sourced? Was it through an open tender, an expression of interest, a target list, the relocation of existing tenants, or a leasing agent? What criteria were used and where is the evaluation documented?",
+      "why": "Undocumented sourcing is where unsuitable or related tenants enter the portfolio, and the method used determines the evidence we expect for each new lease.",
+      "documents": "The tender or expression of interest documents, the target list and the evaluation papers",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_target_list"
+     },
+     {
+      "id": "q.cl_screening",
+      "question": "What screening is performed on prospective tenants, for example the business registration profile, financial statements, related-party checks or credit checks? Is the review by {FINANCE} documented, and is there a threshold for financial health?",
+      "why": "Without a documented threshold, the screening cannot be shown to have rejected anyone; the security deposit then becomes the only mitigation for a financially weak tenant.",
+      "documents": "The {FINANCE} screening emails for the sampled tenants",
+      "interviewee": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
+      "control": "ctrl.cl_screening"
+     },
+     {
+      "id": "q.cl_rejected",
+      "question": "How are prospects that were not selected documented? Were there any complaints or disputes about the selection of tenants during the period?",
+      "why": "Rejections decided without documented justification cannot be defended if challenged and may conceal favouritism.",
+      "documents": "Any records of rejected prospects",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_target_list"
+     },
+     {
+      "id": "q.cl_pricing",
+      "question": "How were the rental rates for the new leases set? Was a valuer or a benchmarking exercise used, and was the budget approved by the Board? Where a rate fell below the approved budget, who approved it?",
+      "why": "The scope requires us to check that lease prices are reviewed and endorsed. Rates below budget without approval are a direct loss of revenue.",
+      "documents": "The rental rate review papers and the Board's approval of the budget",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_benchmarking"
+     },
+     {
+      "id": "q.cl_relocation",
+      "question": "Were any existing tenants offered a right of first refusal, relocation terms or other preferential terms during the period? How were those offers approved and documented?",
+      "why": "Preferential arrangements may bypass the usual sourcing and benchmarking steps and must still be covered by the Delegation of Authority.",
+      "documents": "The relocation or preferential-term approvals and any Board papers",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_rental_approval"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_sourcing",
+     "sub_process": "Tenant sourcing, evaluation and selection",
+     "risk": "Tenants may be selected without documented criteria, market sourcing or background screening. This may result in the selection of unsuitable or financially weak tenants, or of tenants related to staff, without this being detected.",
+     "controls": [
+      "ctrl.cl_target_list",
+      "ctrl.cl_screening",
+      "ctrl.cl_benchmarking"
+     ],
+     "tests": [
+      "test.cl_new_leases"
+     ]
+    },
+    {
+     "id": "risk.cl_pricing",
+     "sub_process": "Rental rate review",
+     "risk": "Rental rates may be set below the approved budget or below market rates without supporting benchmarking and without approval from the appropriate authority, resulting in a loss of revenue.",
+     "controls": [
+      "ctrl.cl_benchmarking",
+      "ctrl.cl_rental_approval"
+     ],
+     "tests": [
+      "test.cl_new_leases",
+      "test.cl_renewals"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_new_leases",
+     "title": "New leases",
+     "objective": "To check that new tenants were sourced, screened, priced, approved, contracted, deposited, insured and set up in {SYSTEM} in accordance with the SOP and the Delegation of Authority, and that the lease terms protect {CLIENT_SHORT}'s interests.",
+     "basis": "Haphazard, with emphasis on the leases with the highest contract value and any lease with non-standard terms.",
+     "population": "New leases during the period per the lease listing",
+     "sample_size": "Ten, or all new leases if the population is smaller",
+     "source": "Lease listing extracted from {SYSTEM} and the documents requested for each selected lease",
+     "steps_intro": "Select up to ten new leases, or all new leases if the population is smaller, and check that:",
+     "steps": [
+      "The sourcing of the tenant is documented, whether through a tender, an expression of interest, a target list or a relocation offer.",
+      "{FINANCE} screened the company profile and business registration documents of the tenant and communicated the result to {DEPARTMENT} before approval.",
+      "The proposed rental rate was supported by market research and compared with the approved budget rent.",
+      "The rental approval paper was approved in accordance with the Delegation of Authority before the Letter of Offer was issued.",
+      "The Letter of Offer and {AGREEMENT} were prepared on the standard template and any non-standard terms or incentives were approved.",
+      "The {AGREEMENT} was signed by the authorised signatory and the tenant, stamped, and executed before the lease commenced.",
+      "A security deposit or banker's guarantee equal to {DEPOSIT_MONTHS} months' rent was received before the premises were handed over.",
+      "The tenant's insurance policy was obtained and covers the required sum and the full lease term.",
+      "The lease details in {SYSTEM} agree with the {AGREEMENT}.",
+      "The handover form was signed and the fit-out request was approved before the fit-out works started."
+     ],
+     "detail_title": "Lease details",
+     "detail_columns": [
+      "Tenant",
+      "Unit",
+      "Commencement date",
+      "Lease term",
+      "Monthly rent ({CURRENCY})",
+      "Rental basis"
+     ],
+     "n_rows": 10
+    }
+   ],
+   "analytics": []
+  },
+  {
+   "id": "mod.cl_contracting",
+   "title": "Lease contracting",
+   "stage": "cycle",
+   "order": 20,
+   "scope_areas": [
+    "Check that lease negotiation and contracting are completed on a timely basis, that the agreements are prepared on the standard template, and that the terms protect {CLIENT_SHORT}'s interests, including the requirement for tenant insurance."
+   ],
+   "walkthrough": {
+    "sheet": "tenant_lease",
+    "section_title": "Lease contracting",
+    "activities": [
+     {
+      "activity": "The {MANAGER} prepares the Letter of Offer and {AGREEMENT} on the template drawn up by the solicitors. The Letter of Offer is valid for a stated period. The {HEAD_OF_DEPARTMENT} reviews the documents, the authorised signatory signs them, and the {AGREEMENT} is stamped.",
+      "performed_by": "{MANAGER}, {HEAD_OF_DEPARTMENT} and {CEO}",
+      "frequency": "As and when required",
+      "document": "Executed Letters of Offer and {AGREEMENT}s and the stamp certificates",
+      "control": {
+       "id": "ctrl.cl_agreement",
+       "text": "The agreements are prepared on the standard template, reviewed by the {HEAD_OF_DEPARTMENT} and signed by the authorised signatory before they are sent to the tenant, and every agreement is stamped.",
+       "owner": "{CEO}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "The {MANAGER} obtains the insurance policy required under the {AGREEMENT} from the tenant before the premises are handed over, and tracks the expiry and renewal of the policy.",
+      "performed_by": "{MANAGER}",
+      "frequency": "As and when required and annually",
+      "document": "Insurance register and policies for the sampled leases",
+      "control": {
+       "id": "ctrl.cl_insurance",
+       "text": "An insurance register is maintained, or the insurance is tracked in {SYSTEM}, and copies of the policies are retained and checked for the sum insured and the expiry date.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_template",
+      "question": "Are the Letter of Offer and {AGREEMENT} prepared on the template drawn up by the solicitors? Were any deviations negotiated during the period, such as rent-free periods, fit-out contributions or break clauses, and who approved them?",
+      "why": "Non-standard terms increase the legal and financial risk to {CLIENT_SHORT}, and incentives need to be approved and tracked for revenue recognition.",
+      "documents": "A list of leases with incentives and the related approvals",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_agreement"
+     },
+     {
+      "id": "q.cl_execution",
+      "question": "Were all the {AGREEMENT}s executed and stamped before the tenants started trading? Are any tenants operating on a Letter of Offer only?",
+      "why": "The timely completion of contracting is an explicit scope item, and a tenant trading before the agreement is executed leaves {CLIENT_SHORT} without enforceable terms.",
+      "documents": "The execution dates of the agreements compared with the commencement dates in the lease listing",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_agreement"
+     },
+     {
+      "id": "q.cl_insurance",
+      "question": "How do you track tenant insurance, that is whether the policy has been obtained, the sum insured and the expiry date, for new and renewed leases? Is it tracked in {SYSTEM} or in a register, and are there any tenants without valid cover at the moment?",
+      "why": "A tenant without valid insurance transfers the loss from damage or injury to the landlord. This is a frequent prior-year finding and is followed up here.",
+      "documents": "The insurance register and the policies for the sampled leases",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_insurance"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_contracting",
+     "sub_process": "Lease negotiation, contracting and signing",
+     "risk": "Lease agreements may contain terms that do not protect {CLIENT_SHORT}'s interests, may not be reviewed and approved before signing, or may be signed only after the tenant has started operating. Insurance required under the lease may not be obtained from the tenant, exposing {CLIENT_SHORT} to uninsured losses.",
+     "controls": [
+      "ctrl.cl_agreement",
+      "ctrl.cl_insurance"
+     ],
+     "tests": [
+      "test.cl_new_leases",
+      "test.cl_renewals"
+     ]
+    }
+   ],
+   "tests": [],
+   "analytics": []
+  },
+  {
+   "id": "mod.cl_renewals",
+   "title": "Lease renewal, extension and modification",
+   "stage": "cycle",
+   "order": 30,
+   "scope_areas": [
+    "Check that lease renewals and rental rate reviews are performed and approved in accordance with the Delegation of Authority."
+   ],
+   "walkthrough": {
+    "sheet": "tenant_lease",
+    "section_title": "Lease renewal, extension and modification",
+    "activities": [
+     {
+      "activity": "{SYSTEM} alerts the team before a lease expires, and the {MANAGER} reviews the leases expiring within the coming months every quarter. The {MANAGER} contacts the tenant, prepares the renewal paper with the tenant's sales performance, the reassessed rental rate and the due diligence by {FINANCE}, and the paper is approved in accordance with the Delegation of Authority.",
+      "performed_by": "{MANAGER} and {HEAD_OF_DEPARTMENT}",
+      "frequency": "Quarterly and as and when required",
+      "document": "Expiry report and renewal papers",
+      "control": {
+       "id": "ctrl.cl_renewal",
+       "text": "The renewal is approved in accordance with the Delegation of Authority, the rental rate is reassessed, and the security deposit is topped up where the rent increases.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual and IT"
+      }
+     },
+     {
+      "activity": "Modifications to leases, such as relocation, early termination or changes in rent, are documented in a supplemental agreement or variation letter and approved in accordance with the Delegation of Authority.",
+      "performed_by": "{HEAD_OF_DEPARTMENT} and {CEO}",
+      "frequency": "As and when required",
+      "document": "Variation letters and supplemental agreements",
+      "control": {
+       "id": "ctrl.cl_variation",
+       "text": "The variation is approved in accordance with the Delegation of Authority and executed before its effective date.",
+       "owner": "{CEO}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_renewal_population",
+      "question": "How many leases were renewed, extended or modified during the period? Did leases that ended expire naturally, were they terminated, or were they varied to end early? How were early terminations approved and were any penalties imposed or waived?",
+      "why": "The answers determine the populations for the tests of renewals and closures. Variations and early terminations often involve waivers that require approval.",
+      "documents": "The lease listing with the status of each lease",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_variation"
+     },
+     {
+      "id": "q.cl_expiry_alert",
+      "question": "Does {SYSTEM} alert the team before a lease expires, and is the quarterly review of expiring leases performed and evidenced?",
+      "why": "A review performed on screen leaves no evidence, and leases that expire unnoticed continue on holdover terms without a rent review.",
+      "documents": "The expiry report and the evidence of the quarterly review",
+      "interviewee": "{STAFF}",
+      "control": "ctrl.cl_renewal"
+     },
+     {
+      "id": "q.cl_renewal_pricing",
+      "question": "At renewal, how is the rental rate reassessed and is the tenant's sales performance considered? Is the security deposit topped up when the rent increases, and is the banker's guarantee extended?",
+      "why": "Renewals at the old rate without reassessment forgo revenue, and deposits that are not topped up leave the exposure under-covered.",
+      "documents": "The renewal papers for the sampled leases",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_renewal"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_renewals",
+     "sub_process": "Lease renewal, extension and modification",
+     "risk": "Leases may expire without the team being aware, leases may be renewed with tenants who have not performed, rental rates may not be reassessed at renewal, and modifications may not be documented and approved, resulting in lost revenue and unenforceable terms.",
+     "controls": [
+      "ctrl.cl_renewal",
+      "ctrl.cl_variation"
+     ],
+     "tests": [
+      "test.cl_renewals"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_renewals",
+     "title": "Renewed, extended and modified leases",
+     "objective": "To check that lease renewals, extensions and modifications were initiated on a timely basis, justified, re-priced, approved in accordance with the Delegation of Authority, and reflected in the agreements and in {SYSTEM}, with the security deposit and insurance updated.",
+     "basis": "Haphazard, including all modifications with non-standard terms.",
+     "population": "Renewed, extended and modified leases during the period per the lease listing",
+     "sample_size": "Five, or all such leases if the population is smaller",
+     "source": "Lease listing extracted from {SYSTEM} and the documents requested for each selected lease",
+     "steps_intro": "Select five renewed, extended or modified leases, or all such leases if the population is smaller, and check that:",
+     "steps": [
+      "The expiry alert or the quarterly review prompted the team to engage the tenant before expiry.",
+      "The renewal or variation paper documents the justification, the sales performance where relevant, the reassessed rate and the due diligence by {FINANCE}.",
+      "The renewal or variation was approved in accordance with the Delegation of Authority before the effective date.",
+      "The supplemental agreement or Letter of Offer was executed and stamped where required.",
+      "The security deposit was topped up where the rent increased and the banker's guarantee was extended.",
+      "The tenant's insurance was renewed to cover the extended term.",
+      "The lease details in {SYSTEM} were updated accurately and approved before activation."
+     ],
+     "detail_title": "Lease details",
+     "detail_columns": [
+      "Tenant",
+      "Unit",
+      "Type (renewal, extension or modification)",
+      "Effective date",
+      "Revised monthly rent ({CURRENCY})"
+     ],
+     "n_rows": 5
+    }
+   ],
+   "analytics": []
+  },
+  {
+   "id": "mod.cl_fitout_closure",
+   "title": "Fit-out, make-good and lease closure",
+   "stage": "cycle",
+   "order": 40,
+   "scope_areas": [
+    "Check that incoming tenant fit-out and outgoing tenant make-good activities are monitored and that lease closures are completed properly."
+   ],
+   "walkthrough": {
+    "sheet": "tenant_lease",
+    "section_title": "Fit-out and make-good",
+    "activities": [
+     {
+      "activity": "When a new tenant takes over a unit, {FACILITIES} hands over the unit, the tenant signs the handover form, and the tenant's fit-out request is reviewed and inspected during the fit-out period.",
+      "performed_by": "{FACILITIES}",
+      "frequency": "As and when required",
+      "document": "Handover forms and fit-out request forms",
+      "control": {
+       "id": "ctrl.cl_handover",
+       "text": "The handover form is signed by the tenant, the fit-out request is approved, and the inspections during the fit-out period are documented.",
+       "owner": "Manager, {FACILITIES}",
+       "classification": "Preventive and detective",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "When a tenant leaves, the tenant gives notice in accordance with the {AGREEMENT} and reinstates the premises. {FACILITIES} carries out a joint inspection with the tenant using the inspection checklist and signs the checklist, and any make-good cost is assessed for deduction from the security deposit.",
+      "performed_by": "{FACILITIES} and {DEPARTMENT}",
+      "frequency": "As and when required",
+      "document": "Inspection checklists and make-good cost assessments",
+      "control": {
+       "id": "ctrl.cl_inspection",
+       "text": "The inspection checklist is signed before the security deposit is refunded, and make-good costs are deducted from the deposit.",
+       "owner": "Manager, {FACILITIES} and {HEAD_OF_DEPARTMENT}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_exit",
+      "question": "For the tenants who left during the period, how were they notified, what reinstatement standard was applied, and was a joint inspection with a signed checklist carried out for every unit? Were any make-good costs charged to tenants?",
+      "why": "The signed inspection checklist is the control that the security deposit refund depends on; without it, deductions cannot be supported and disputes follow.",
+      "documents": "The inspection checklists and the make-good cost assessments",
+      "interviewee": "{FACILITIES}",
+      "control": "ctrl.cl_inspection"
+     },
+     {
+      "id": "q.cl_fitout",
+      "question": "For the new tenants, was a handover form signed, was the fit-out request approved, was a fit-out deposit collected, and were inspections carried out during the fit-out period? Were there any incidents of damage?",
+      "why": "The handover form and the fit-out inspections are the main controls over incoming tenants and over damage to the premises.",
+      "documents": "The handover and fit-out forms for the sampled leases",
+      "interviewee": "{FACILITIES}",
+      "control": "ctrl.cl_handover"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_fitout_closure",
+     "sub_process": "Incoming tenant fit-out and outgoing tenant make-good",
+     "risk": "Fit-out works may be carried out without approval and damage the premises. Outgoing tenants may not reinstate the premises before the lease ends, and lease closures may not be closed out properly, resulting in unrecovered costs and disputes.",
+     "controls": [
+      "ctrl.cl_handover",
+      "ctrl.cl_inspection"
+     ],
+     "tests": [
+      "test.cl_closures"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_closures",
+     "title": "Expired and terminated leases, make-good and security deposit refunds",
+     "objective": "To check that lease closures were properly noticed, inspected, made good and finally billed, and that the security deposits were refunded with authorisation, net of valid deductions and within the timeline committed to tenants.",
+     "basis": "Haphazard, with emphasis on the largest deposits and any refund that took more than {REFUND_DAYS} days.",
+     "population": "Expired and terminated leases during the period per the lease listing",
+     "sample_size": "Ten, or all such leases if the population is smaller",
+     "source": "Lease listing, security deposit movements, refund deposit forms and inspection checklists",
+     "steps_intro": "Select ten expired or terminated leases, or all such leases if the population is smaller, and check that:",
+     "steps": [
+      "The notice of expiry or termination complied with the {AGREEMENT}, and any early termination penalty was imposed or its waiver approved.",
+      "The joint inspection checklist was signed, and the make-good works were completed or the cost was assessed.",
+      "The final invoice was pro-rated to the exit date and billing was stopped after the lease ended.",
+      "The refund deposit form was prepared with supported deductions, reviewed by the {MANAGER} and approved by the {HEAD_OF_DEPARTMENT}.",
+      "The security deposit was refunded within {REFUND_DAYS} days of {REFUND_FROM}.",
+      "The lease was deactivated in {SYSTEM} and the tenant no longer appears in the active ageing report.",
+      "Any deposit unrefunded after {REFUND_DAYS} days is explained and tracked."
+     ],
+     "detail_title": "Lease closure details",
+     "detail_columns": [
+      "Tenant",
+      "Unit",
+      "Lease end date",
+      "Handover date",
+      "Deposit held ({CURRENCY})",
+      "Refund date",
+      "Days from lease end to refund"
+     ],
+     "n_rows": 10,
+     "detail_formulas": {
+      "Days from lease end to refund": "=IF(AND(ISNUMBER(E{r}),ISNUMBER(H{r})),H{r}-E{r},\"\")"
+     }
+    }
+   ],
+   "analytics": []
+  },
+  {
+   "id": "mod.cl_deposit_collection",
+   "title": "Collection of security deposits",
+   "stage": "cycle",
+   "order": 50,
+   "scope_areas": [
+    "Check that security deposits and banker's guarantees are collected in accordance with the lease agreements before the premises are handed over to the tenant."
+   ],
+   "walkthrough": {
+    "sheet": "deposits",
+    "section_title": "Collection",
+    "activities": [
+     {
+      "activity": "On signing the {AGREEMENT}, the {MANAGER} informs the tenant of the security deposit due and informs {FINANCE} of the amount to expect.",
+      "performed_by": "{MANAGER}",
+      "frequency": "As and when required",
+      "document": "Letters of Offer and the notification emails to {FINANCE}",
+      "control": {
+       "id": "ctrl.cl_deposit_notice",
+       "text": "The security deposit requirement is stated in the {AGREEMENT} and {FINANCE} is informed of the amount due.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "The {FINANCE_PREPARER} identifies the receipt in the bank statement or receives the banker's guarantee, checks the amount against the Letter of Offer, posts the deposit in {SYSTEM} and confirms the receipt to {DEPARTMENT} by email.",
+      "performed_by": "{FINANCE_PREPARER}",
+      "frequency": "As and when required",
+      "document": "Bank statements and the {SYSTEM} postings",
+      "control": {
+       "id": "ctrl.cl_deposit_receipt",
+       "text": "The deposit is agreed to the Letter of Offer before it is posted, and the premises are handed over only after the deposit has been received.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_deposit_collection",
+      "question": "How is the security deposit or banker's guarantee collected and confirmed before the premises are handed over? Is the requirement {DEPOSIT_MONTHS} months' rent, were there any exceptions, and what proportion is held in cash and what proportion as banker's guarantees?",
+      "why": "A unit handed over before the deposit is received leaves the landlord unsecured from day one, and any reduced deposit should have been approved under the Delegation of Authority.",
+      "documents": "The security deposit listing as at the period end and the receipts for the sampled leases",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_deposit_receipt"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_deposit_collection",
+     "sub_process": "Collection of security deposits and banker's guarantees",
+     "risk": "Security deposits may not be collected, or may be collected for less than {DEPOSIT_MONTHS} months' rent, before the premises are handed over, and banker's guarantees may expire before the lease ends, leaving arrears and damage unsecured.",
+     "controls": [
+      "ctrl.cl_deposit_notice",
+      "ctrl.cl_deposit_receipt"
+     ],
+     "tests": [
+      "test.cl_new_leases",
+      "test.cl_renewals",
+      "test.cl_deposit_listing"
+     ]
+    }
+   ],
+   "tests": [],
+   "analytics": []
+  },
+  {
+   "id": "mod.cl_deposit_monitoring",
+   "title": "Monitoring and reconciliation of security deposits",
+   "stage": "cycle",
+   "order": 51,
+   "scope_areas": [
+    "Check that the security deposit listing is maintained, reconciled to the general ledger and that the expiry of banker's guarantees is monitored."
+   ],
+   "walkthrough": {
+    "sheet": "deposits",
+    "section_title": "Monitoring",
+    "activities": [
+     {
+      "activity": "{DEPARTMENT} maintains the listing of security deposits and banker's guarantees and monitors the expiry of each banker's guarantee against the lease term. {FINANCE} reconciles the security deposit balance in {SYSTEM} to {ERP} every month.",
+      "performed_by": "{DEPARTMENT} and {FINANCE}",
+      "frequency": "Monthly",
+      "document": "Security deposit listing, movements and the general ledger reconciliation",
+      "control": {
+       "id": "ctrl.cl_deposit_recon",
+       "text": "The security deposit listing is reconciled to the general ledger and the expiry of banker's guarantees is tracked.",
+       "owner": "{FINANCE_REVIEWER} and {HEAD_OF_DEPARTMENT}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_bg_custody",
+      "question": "Where are the original banker's guarantees kept, who has custody of them, and how is their expiry monitored against the lease term? Has any banker's guarantee expired before the lease ended?",
+      "why": "An expired guarantee is worthless, and originals kept informally cannot be called on when needed.",
+      "documents": "The banker's guarantee register and a sample of original guarantees",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_deposit_recon"
+     },
+     {
+      "id": "q.cl_deposit_recon",
+      "question": "Is the security deposit listing reconciled to the general ledger in {ERP} every month? Who reviews the reconciliation, and are there any long-outstanding differences?",
+      "why": "The reconciliation of the deposit listing to the general ledger is a scope item for this review and the control over deposits that go missing or are refunded twice.",
+      "documents": "The general ledger reconciliation for three months",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_deposit_recon"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_deposit_monitoring",
+     "sub_process": "Monitoring and reconciliation of security deposits",
+     "risk": "The security deposit listing may not be reconciled to the general ledger, and deposits that remain unrefunded after a tenant has left may not be tracked, so that missing or duplicated deposits are not detected.",
+     "controls": [
+      "ctrl.cl_deposit_recon"
+     ],
+     "tests": [
+      "test.cl_deposit_listing"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_deposit_listing",
+     "title": "Security deposit listing and banker's guarantees",
+     "objective": "To check that the security deposits and banker's guarantees held agree with the lease terms, are safeguarded and reconciled to the general ledger, and that the validity of banker's guarantees is monitored.",
+     "basis": "The full listing is reconciled. Ten deposits or banker's guarantees are selected haphazardly for vouching.",
+     "population": "Security deposits and banker's guarantees held as at the period end",
+     "sample_size": "Full listing and ten items",
+     "source": "Security deposit listing, movements for the period, general ledger reconciliation and original banker's guarantees",
+     "steps_intro": "Reconcile the security deposit listing as at the period end to the general ledger, then select ten deposits or banker's guarantees and check that:",
+     "steps": [
+      "The amount held equals {DEPOSIT_MONTHS} months' rent under the {AGREEMENT}, or the exception was approved.",
+      "The original banker's guarantee was sighted and is kept in safe custody.",
+      "The validity of the banker's guarantee extends beyond the lease end date.",
+      "Expired banker's guarantees were renewed or replaced with cash deposits.",
+      "Unrefunded deposits of tenants who have left are identified and tracked.",
+      "The movements during the period agree with the lease events."
+     ],
+     "detail_title": "Deposit details",
+     "detail_columns": [
+      "Tenant",
+      "Unit",
+      "Monthly rent ({CURRENCY})",
+      "Required deposit ({CURRENCY})",
+      "Deposit held ({CURRENCY})",
+      "Form (cash or banker's guarantee)",
+      "Guarantee expiry date"
+     ],
+     "n_rows": 10,
+     "detail_formulas": {
+      "Required deposit ({CURRENCY})": "=IF(ISNUMBER(E{r}),E{r}*{DEPOSIT_MONTHS_N},\"\")"
+     }
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.cl_deposit_cover",
+     "analytic": "Security deposits held compared with {DEPOSIT_MONTHS} months of rent for each lease.",
+     "source": "Lease listing and security deposit listing",
+     "identifies": "A deposit below {DEPOSIT_MONTHS} months of rent indicates a shortfall. A deposit held for more than {REFUND_DAYS} days after the lease ended indicates a delayed refund.",
+     "tests": [
+      "test.cl_deposit_listing",
+      "test.cl_closures"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.cl_deposit_refund",
+   "title": "Refund of security deposits",
+   "stage": "cycle",
+   "order": 52,
+   "scope_areas": [
+    "Check that security deposit refunds are authorised, net of valid deductions, and are paid within the timeline committed to tenants."
+   ],
+   "walkthrough": {
+    "sheet": "deposits",
+    "section_title": "Refund",
+    "activities": [
+     {
+      "activity": "After the joint inspection, the {STAFF} prepares the refund deposit form, deducting any arrears, make-good costs and penalties. The {MANAGER} reviews the form, the {HEAD_OF_DEPARTMENT} approves it, and {FINANCE} refunds the balance within the timeline stated in the letter of expiry.",
+      "performed_by": "{DEPARTMENT} and {FINANCE}",
+      "frequency": "As and when required",
+      "document": "Refund deposit forms and payment evidence",
+      "control": {
+       "id": "ctrl.cl_refund_approval",
+       "text": "The refund form is approved with the deductions supported, and the refund is made within {REFUND_DAYS} days of {REFUND_FROM} using the checklist for outgoing tenants.",
+       "owner": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "Where a lease is terminated for non-payment of rent, the security deposit is forfeited with the approval of the appropriate authority.",
+      "performed_by": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
+      "frequency": "As and when required",
+      "document": "Forfeiture approvals",
+      "control": {
+       "id": "ctrl.cl_forfeiture",
+       "text": "The forfeiture is approved in accordance with the Delegation of Authority and posted correctly.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_refund_timing",
+      "question": "For the tenants who left during the period, how many refunds are due, how many have been paid, and how long did each take from the lease end date? What is holding up any refund that has not yet been paid?",
+      "why": "Late refunds are the most common tenant complaint and a frequent prior-year finding; the committed timeline is tested against the actual days taken.",
+      "documents": "The deposit movements for the period and the refund forms",
+      "interviewee": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
+      "control": "ctrl.cl_refund_approval"
+     },
+     {
+      "id": "q.cl_refund_deductions",
+      "question": "What deductions were made from the refunds, for example arrears, make-good costs, late interest or utilities? Who approved the net amount, and how was it communicated to the tenant?",
+      "why": "Unsupported deductions lead to disputes with tenants, and deductions that are not made result in a loss to {CLIENT_SHORT}.",
+      "documents": "The refund forms with the supporting documents for each deduction",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_refund_approval"
+     },
+     {
+      "id": "q.cl_unclaimed",
+      "question": "Are there any unclaimed or long-outstanding deposits of tenants who have left, and how are they treated?",
+      "why": "Unclaimed deposits sit in the ledger indefinitely and are a target for misappropriation.",
+      "documents": "The listing of unrefunded deposits and the payment evidence",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_refund_approval"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_deposit_refund",
+     "sub_process": "Refund of security deposits",
+     "risk": "Security deposits may be refunded late, without authorisation, or without deducting outstanding arrears and make-good costs, resulting in disputes and unrecovered amounts.",
+     "controls": [
+      "ctrl.cl_refund_approval",
+      "ctrl.cl_forfeiture"
+     ],
+     "tests": [
+      "test.cl_closures"
+     ]
+    }
+   ],
+   "tests": [],
+   "analytics": [
+    {
+     "id": "da.cl_refund_timeliness",
+     "analytic": "Refund timeliness. The number of days from {REFUND_FROM} to the refund date is computed for every lease that ended during the period.",
+     "source": "Lease listing and security deposit movements",
+     "identifies": "A refund that took more than {REFUND_DAYS} days is an exception to the committed timeline.",
+     "tests": [
+      "test.cl_closures"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.cl_billing_fixed",
+   "title": "Billing of fixed rent and service charges",
+   "stage": "cycle",
+   "order": 60,
+   "scope_areas": [
+    "Check that invoices and receipts are issued accurately and recorded on a timely basis."
+   ],
+   "walkthrough": {
+    "sheet": "billing",
+    "section_title": "Billing of fixed rent and service charges",
+    "activities": [
+     {
+      "activity": "{SYSTEM} generates the monthly invoices from the charges in the {MASTER_FILE}, sends them to the tenants and posts the revenue and receivable entries.",
+      "performed_by": "{SYSTEM}",
+      "frequency": "Monthly",
+      "document": "Invoice listing for the period",
+      "control": {
+       "id": "ctrl.cl_system_billing",
+       "text": "The invoices are generated by the system from the approved {MASTER_FILE}.",
+       "owner": "{FINANCE}",
+       "classification": "Preventive",
+       "type": "IT"
+      }
+     },
+     {
+      "activity": "The {FINANCE_PREPARER} checks the fixed rent billed against the Letter of Offer for new leases and against the previous month for existing leases, documents the check in a spreadsheet, and the {FINANCE_REVIEWER} reviews and signs it.",
+      "performed_by": "{FINANCE_PREPARER} and {FINANCE_REVIEWER}",
+      "frequency": "Monthly",
+      "document": "Fixed rent check files for the sampled months",
+      "control": {
+       "id": "ctrl.cl_rent_check",
+       "text": "The monthly fixed rent check is reviewed by the {FINANCE_REVIEWER} and the review is evidenced by signature.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_billing_run",
+      "question": "Could you walk us through the monthly billing run? When does {SYSTEM} generate the invoices, how are they sent to tenants, what is checked before and after the run, and who reviews the check?",
+      "why": "The fixed rent check is the main detective control over billing, and whether anything is checked before the invoices are sent determines whether errors reach tenants.",
+      "documents": "The invoice listing for the period and the fixed rent check for three months",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_rent_check"
+     },
+     {
+      "id": "q.cl_first_billing",
+      "question": "How do you make sure that the first billing run for a new lease is complete and correct, in particular the rent-free period, the pro-rated rent, the service charges and tax?",
+      "why": "The first month of a lease carries the highest risk of billing errors and omissions.",
+      "documents": "The billing checks for the months with new leases and the schedule of rent-free periods",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_rent_check"
+     },
+     {
+      "id": "q.cl_final_billing",
+      "question": "How are the final invoices for tenants who leave handled? Is the rent pro-rated to the exit date, are utilities and late interest billed, and is billing stopped in {SYSTEM}?",
+      "why": "Billing that continues after a tenant has left, or final charges that are missed, both result in errors in revenue.",
+      "documents": "The final invoices for the tenants who left",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_system_billing"
+     },
+     {
+      "id": "q.cl_incentives",
+      "question": "How is revenue recognised for rent-free periods and fit-out contributions? Are the lease incentives straight-lined over the lease term, and who reviews the schedules?",
+      "why": "Lease incentives create a risk that revenue is recognised in the wrong period.",
+      "documents": "The straight-lining schedules",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_rent_check"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_billing_fixed",
+     "sub_process": "Billing of fixed rent and service charges",
+     "risk": "Invoices may be inaccurate or incomplete when compared with the lease, billing for new leases may not be triggered, and rent-free periods may be applied incorrectly, resulting in misstated revenue and tenant disputes.",
+     "controls": [
+      "ctrl.cl_system_billing",
+      "ctrl.cl_rent_check"
+     ],
+     "tests": [
+      "test.cl_billing"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_billing",
+     "title": "Billing and recording of receipts",
+     "objective": "To check that fixed rent and service charges are billed accurately and completely in accordance with the {AGREEMENT}s, that the revenue is recorded in the correct period, and that receipts are applied correctly.",
+     "basis": "Haphazard across three months, including a month with new or ended leases, with emphasis on the tenants contributing the most revenue.",
+     "population": "Invoices issued during the period per the invoice listing",
+     "sample_size": "Twenty-five",
+     "source": "Invoice listing, {AGREEMENT}s, bank statements, direct debit reports and the general ledger",
+     "steps_intro": "Select twenty-five invoices across three months, including a month with new or ended leases, and check that:",
+     "steps": [
+      "The rental rate, floor area, billing period, rent-free period and tax agree with the {AGREEMENT} or Letter of Offer.",
+      "The invoice date and period are correct, and the amount is pro-rated correctly where applicable.",
+      "The revenue was posted to the correct general ledger account and period in {SYSTEM} and in {ERP}.",
+      "The receipt was traced to the bank statement and applied to the correct invoice, and any failed direct debit was reversed and followed up.",
+      "The fixed rent check for the month was prepared by the {FINANCE_PREPARER} and reviewed by the {FINANCE_REVIEWER}.",
+      "Every active lease in the {MASTER_FILE} was billed in the month."
+     ],
+     "detail_title": "Invoice details",
+     "detail_columns": [
+      "Invoice number",
+      "Invoice date",
+      "Tenant",
+      "Unit",
+      "Billing period",
+      "Charge type",
+      "Invoice amount ({CURRENCY})"
+     ],
+     "n_rows": 25
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.cl_billing_completeness",
+     "analytic": "Completeness of billing. For each month, the active leases in the {MASTER_FILE} are compared with the invoices issued.",
+     "source": "Lease listing and invoice listing",
+     "identifies": "An active lease with no fixed rent invoice in a month indicates unbilled revenue. An invoice for a lease that has ended indicates billing after exit.",
+     "tests": [
+      "test.cl_billing"
+     ]
+    },
+    {
+     "id": "da.cl_rent_recompute",
+     "analytic": "Recomputation of invoiced rent. The invoice amount is compared with the rent recorded in the {MASTER_FILE} for each lease and month.",
+     "source": "Lease listing and invoice listing",
+     "identifies": "An invoice that does not agree with the contractual rent, after allowing for approved rent-free periods, indicates a billing error.",
+     "tests": [
+      "test.cl_billing"
+     ]
+    },
+    {
+     "id": "da.cl_invoice_sequence",
+     "analytic": "Duplicate and sequence check on invoice numbers and amounts.",
+     "source": "Invoice listing",
+     "identifies": "A duplicate invoice or a gap in the invoice sequence indicates a processing error.",
+     "tests": [
+      "test.cl_billing"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.cl_additional_rent",
+   "title": "Additional rent based on gross turnover",
+   "stage": "cycle",
+   "order": 61,
+   "scope_areas": [
+    "Check that additional rental dues, based on a percentage of gross turnover or another variable basis, are computed correctly and that the audited sales figures of tenants are obtained annually for verification."
+   ],
+   "walkthrough": {
+    "sheet": "billing",
+    "section_title": "Additional rent based on gross turnover or other variable basis",
+    "activities": [
+     {
+      "activity": "Tenants submit their monthly sales figures, or {CLIENT_SHORT} extracts the variable-basis data, and {DEPARTMENT} places the figures in the shared drive. The {FINANCE_PREPARER} recomputes the additional rent at the rate in the {AGREEMENT}, the {FINANCE_REVIEWER} approves the computation, and an ad hoc invoice is raised in {SYSTEM}.",
+      "performed_by": "{DEPARTMENT}, {FINANCE_PREPARER} and {FINANCE_REVIEWER}",
+      "frequency": "Monthly",
+      "document": "Sales submissions, computation workings and approvals",
+      "control": {
+       "id": "ctrl.cl_turnover_rent",
+       "text": "The recomputation is reviewed and approved before the invoice is issued, and any variable-basis data extracted internally is validated against the operational records.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "Each year the {FINANCE_PREPARER} obtains the audited financial statements or certified sales figures from each tenant on the gross turnover model, recomputes the additional rent, and prepares a debit or credit note for any difference, which the {FINANCE_REVIEWER} reviews and the approvers under the Delegation of Authority approve.",
+      "performed_by": "{FINANCE_PREPARER} and {FINANCE_REVIEWER}",
+      "frequency": "Annually",
+      "document": "Register of audited financial statements and the adjustment notes",
+      "control": {
+       "id": "ctrl.cl_turnover_trueup",
+       "text": "The audited figures are obtained by the month stated in the SOP and the adjustment is approved in accordance with the Delegation of Authority.",
+       "owner": "{HEAD_OF_FINANCE}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_turnover_tenants",
+      "question": "Which tenants are currently on the gross turnover or another variable model? How do tenants submit their sales figures, in what format and by what deadline? Where is the computation done, who reviews it, and how is the ad hoc invoice approved?",
+      "why": "A computation maintained in a spreadsheet outside the system depends entirely on review; the deadline and format determine whether the data can be relied on.",
+      "documents": "The list of tenants on these models and the workings for three months",
+      "interviewee": "{FINANCE} and {DEPARTMENT}",
+      "control": "ctrl.cl_turnover_rent"
+     },
+     {
+      "id": "q.cl_turnover_audited",
+      "question": "Have the audited financial statements, or sales figures certified by the auditors, been obtained from every tenant on the gross turnover model for the tenant's last financial year, and has the true-up been performed? Is there a reminder or register in place?",
+      "why": "Without the annual true-up, the additional rent rests on unverified declarations by tenants. This is a frequent prior-year finding and is followed up here.",
+      "documents": "The register of audited financial statements and the debit or credit notes for the true-up",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_turnover_trueup"
+     },
+     {
+      "id": "q.cl_variable_data",
+      "question": "For rent based on a variable basis other than tenant sales, such as footfall or throughput, what is the data source, who extracts the data, and is it verified independently before billing?",
+      "why": "Internally extracted data must be reliable before it is used for billing, otherwise the rent charged cannot be defended.",
+      "documents": "The data extract and its reconciliation to the operational records",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_turnover_rent"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_additional_rent",
+     "sub_process": "Additional rent based on gross turnover or other variable basis",
+     "risk": "Additional rent may be computed incorrectly on the sales figures declared by tenants, and the audited sales figures may not be obtained annually to verify the amounts billed. Where rent is based on other variable data, the data may not be validated before billing, resulting in under-billed revenue.",
+     "controls": [
+      "ctrl.cl_turnover_rent",
+      "ctrl.cl_turnover_trueup"
+     ],
+     "tests": [
+      "test.cl_additional_rent"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_additional_rent",
+     "title": "Additional rent based on gross turnover or other variable basis",
+     "objective": "To check that additional rent is computed on validated data at the rate in the {AGREEMENT}, approved before billing, and trued up to the audited sales figures each year.",
+     "basis": "All tenants on these models if there are three or fewer; otherwise three tenants selected haphazardly, with three months for each tenant.",
+     "population": "Tenants on the gross turnover or other variable model during the period",
+     "sample_size": "Nine tenant-months",
+     "source": "Monthly sales or variable-basis submissions, computation workings, approvals, {AGREEMENT}s and audited financial statements",
+     "steps_intro": "Select three tenants on the gross turnover or other variable model and three months for each tenant, and check that:",
+     "steps": [
+      "The monthly declaration or data was received by the deadline and retained.",
+      "The additional rent recomputed by us agrees with the amount invoiced.",
+      "The computation was approved by the {FINANCE_REVIEWER} before the invoice was issued.",
+      "The invoice was posted correctly in {SYSTEM} and {ERP}.",
+      "The audited figures for the tenant's last financial year were obtained, the additional rent was recomputed, and any adjustment was approved in accordance with the Delegation of Authority.",
+      "A reminder or register for the annual true-up is in place.",
+      "Any internally extracted variable-basis data was reconciled to the operational records."
+     ],
+     "detail_title": "Computation details",
+     "detail_columns": [
+      "Tenant",
+      "Month",
+      "Declared sales or variable base",
+      "Rate per {AGREEMENT} (%)",
+      "Additional rent recomputed ({CURRENCY})",
+      "Amount invoiced ({CURRENCY})",
+      "Difference ({CURRENCY})"
+     ],
+     "n_rows": 9,
+     "detail_formulas": {
+      "Additional rent recomputed ({CURRENCY})": "=IF(AND(ISNUMBER(E{r}),ISNUMBER(F{r})),E{r}*F{r}/100,\"\")",
+      "Difference ({CURRENCY})": "=IF(AND(ISNUMBER(G{r}),ISNUMBER(H{r})),H{r}-G{r},\"\")"
+     }
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.cl_turnover_billing",
+     "analytic": "Turnover rent billing by tenant and month, compared with the list of tenants on the gross turnover model.",
+     "source": "Invoice listing and lease listing",
+     "identifies": "A month in which a tenant on the gross turnover model was not billed additional rent indicates a gap in billing.",
+     "tests": [
+      "test.cl_additional_rent"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.cl_adjustments",
+   "title": "Credit notes, waivers, rent relief, voids, refunds and write-offs",
+   "stage": "cycle",
+   "order": 62,
+   "scope_areas": [
+    "Check that rent relief, waivers, void transactions, refunds, credit notes and write-offs of arrears are substantiated and approved by the appropriate authority."
+   ],
+   "walkthrough": {
+    "sheet": "billing",
+    "section_title": "Credit notes, waivers, rent relief, voids, refunds and write-offs",
+    "activities": [
+     {
+      "activity": "The {FINANCE_PREPARER} prepares the credit or debit note form with the justification, the {FINANCE_REVIEWER} reviews it, and the approvers under the Delegation of Authority approve it. Rent relief and waivers are approved in accordance with the Delegation of Authority.",
+      "performed_by": "{FINANCE_PREPARER}, {FINANCE_REVIEWER} and the approvers",
+      "frequency": "As and when required",
+      "document": "Credit note forms and the approvals of rent relief",
+      "control": {
+       "id": "ctrl.cl_credit_note",
+       "text": "Every reduction in revenue or receivables is approved in accordance with the Delegation of Authority with documented justification.",
+       "owner": "{HEAD_OF_FINANCE}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_adjustments_listing",
+      "question": "Could you provide a list of the credit notes, debit notes, rent relief, waivers, voids and refunds issued during the period? Were any concessions given, such as rent-free periods or the waiver of a final month's rent? Who approved them and under which limit in the Delegation of Authority?",
+      "why": "This is an explicit scope item. Concessions are where revenue leaks through informal approvals.",
+      "documents": "The listing, the credit note forms and the approvals of rent relief",
+      "interviewee": "{FINANCE} and {HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_credit_note"
+     },
+     {
+      "id": "q.cl_credit_note_sod",
+      "question": "Can one person raise and post a credit note in {SYSTEM}? Is there an approval workflow in the system, or is approval obtained by email only?",
+      "why": "The answer determines whether the control is preventive within the system or detective through review.",
+      "documents": "A demonstration on screen and the evidence of approval for a credit note",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_credit_note"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_adjustments",
+     "sub_process": "Credit notes, waivers, rent relief, voids, refunds and write-offs",
+     "risk": "Reductions in revenue or receivables may be made without supporting justification or without approval from the appropriate authority, resulting in a loss of revenue or the concealment of misappropriated receipts.",
+     "controls": [
+      "ctrl.cl_credit_note"
+     ],
+     "tests": [
+      "test.cl_adjustments"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_adjustments",
+     "title": "Credit notes, waivers, rent relief, voids, refunds and write-offs",
+     "objective": "To check that all reductions in revenue or receivables are substantiated, approved in accordance with the Delegation of Authority and recorded correctly.",
+     "basis": "Haphazard, with emphasis on the largest amounts and on any concession connected with operational changes in the period.",
+     "population": "Credit notes, debit notes, waivers, rent relief, voids, refunds and write-offs during the period per the listing",
+     "sample_size": "Ten, or all transactions if the population is smaller",
+     "source": "Listing of adjustments, credit note forms, approvals and the general ledger",
+     "steps_intro": "Select ten credit notes, debit notes, waivers, rent relief, voids, refunds or write-offs, or all such transactions if the population is smaller, and check that:",
+     "steps": [
+      "The justification and supporting computation are documented.",
+      "The transaction was approved in accordance with the Delegation of Authority before it was posted.",
+      "The transaction was posted to the correct tenant, general ledger account and period.",
+      "The tenant was notified of the adjustment.",
+      "The person who raised the transaction is not the person who approved or posted it.",
+      "Rent relief and concessions were approved by the appropriate authority."
+     ],
+     "detail_title": "Adjustment details",
+     "detail_columns": [
+      "Document number",
+      "Date",
+      "Tenant",
+      "Type",
+      "Amount ({CURRENCY})",
+      "Reason"
+     ],
+     "n_rows": 10
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.cl_manual_documents",
+     "analytic": "Manual documents by user. Ad hoc invoices and credit notes are summarised by the user who created them and the user who approved them.",
+     "source": "Invoice listing and the listing of adjustments",
+     "identifies": "A high volume of manual documents raised by one user, or a credit note raised and approved by the same user, indicates a weakness in approval.",
+     "tests": [
+      "test.cl_adjustments"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.cl_receipts",
+   "title": "Recording of receipts",
+   "stage": "cycle",
+   "order": 63,
+   "scope_areas": [
+    "Check that revenue is recorded accurately, completely and in the correct period, and that receipts are applied correctly."
+   ],
+   "walkthrough": {
+    "sheet": "billing",
+    "section_title": "Receipts and revenue recording",
+    "activities": [
+     {
+      "activity": "The {FINANCE_PREPARER} generates the direct debit report after the invoices are issued, {SYSTEM} posts the receipts, and the {FINANCE_PREPARER} compares the report with the bank statement using view-only access to internet banking and reverses any direct debit deduction that failed.",
+      "performed_by": "{FINANCE_PREPARER}",
+      "frequency": "Monthly",
+      "document": "Direct debit reports and bank statements",
+      "control": {
+       "id": "ctrl.cl_direct_debit",
+       "text": "The completeness of direct debit collections is checked against the bank statement, and failed deductions are reversed and followed up.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_giro",
+      "question": "What proportion of tenants pay by direct debit? When is direct debit set up for new tenants? How are failed deductions and payments by other means, such as bank transfer, identified and applied?",
+      "why": "Receipts outside direct debit are where misapplication and unapplied cash arise, and new tenants often pay by other means until direct debit is set up.",
+      "documents": "The direct debit reports and the report of unapplied receipts",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_direct_debit"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_receipts",
+     "sub_process": "Recording of receipts and completeness of revenue",
+     "risk": "Receipts may not be applied, or may be applied to the wrong invoice, failed direct debit deductions may not be reversed, and revenue may be recorded in the wrong period, so that receivables and revenue are misstated.",
+     "controls": [
+      "ctrl.cl_direct_debit"
+     ],
+     "tests": [
+      "test.cl_billing",
+      "test.variance_analysis"
+     ]
+    }
+   ],
+   "tests": [],
+   "analytics": []
+  },
+  {
+   "id": "mod.cl_receivables",
+   "title": "Monitoring of accounts receivable and follow-up on arrears",
+   "stage": "cycle",
+   "order": 70,
+   "scope_areas": [
+    "Check that accounts receivable are monitored and that follow-up actions on arrears are taken promptly and escalated in accordance with the procedures."
+   ],
+   "walkthrough": {
+    "sheet": "receivables",
+    "section_title": "Monitoring of accounts receivable and follow-up on arrears",
+    "activities": [
+     {
+      "activity": "The {FINANCE_PREPARER} generates the ageing report from {SYSTEM} every month, reconciles the total to the trade receivables balance in {ERP}, and the {FINANCE_REVIEWER} reviews the report.",
+      "performed_by": "{FINANCE_PREPARER} and {FINANCE_REVIEWER}",
+      "frequency": "Monthly",
+      "document": "Ageing reports for the sampled months",
+      "control": {
+       "id": "ctrl.cl_ageing_review",
+       "text": "The ageing report is reviewed every month and reconciled to the trial balance.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "The {FINANCE_PREPARER} sends reminders and demand notices and bills late payment interest. {DEPARTMENT} engages the tenant when the balance reaches the first escalation threshold. Balances past the final threshold are escalated through drawing down the deposit, calling on the banker's guarantee, suspension or legal action, with the approval required under the Delegation of Authority.",
+      "performed_by": "{FINANCE_PREPARER}, {DEPARTMENT} and {HEAD_OF_DEPARTMENT}",
+      "frequency": "Monthly",
+      "document": "Follow-up records for the sampled tenants",
+      "control": {
+       "id": "ctrl.cl_escalation",
+       "text": "The follow-up actions are documented and the escalation steps are approved.",
+       "owner": "{FINANCE_REVIEWER} and {HEAD_OF_DEPARTMENT}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_ageing_review",
+      "question": "Could you walk us through the monthly review of the ageing report? Who generates it, who reviews it, is it reconciled to the trade receivables balance in {ERP}, and how are the actions taken documented?",
+      "why": "A review performed on screen with actions taken by email leaves no evidence; the planning memorandum asks for the ageing total reconciled to the trial balance.",
+      "documents": "The ageing reports for three months with the evidence of review",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_ageing_review"
+     },
+     {
+      "id": "q.cl_escalation",
+      "question": "What is the escalation ladder for arrears, from reminders and engagement by {DEPARTMENT}, to late interest, drawing down the deposit or calling on the banker's guarantee, suspension, termination and legal action? What are the day-count triggers, is the ladder set out in the SOP, and who approves each step?",
+      "why": "Each step of the ladder needs an approver under the Delegation of Authority, and the day-count triggers are what we test the follow-up records against.",
+      "documents": "The relevant extract of the SOP and the escalation records",
+      "interviewee": "{FINANCE} and {HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_escalation"
+     },
+     {
+      "id": "q.cl_late_interest",
+      "question": "Is late payment interest computed and billed consistently? Are warning letters issued for small balances that consist mainly of late interest?",
+      "why": "Inconsistent late interest is both a revenue leak and a source of tenant disputes, and small residual balances clutter the ageing report.",
+      "documents": "The late interest computations and the letters issued",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_escalation"
+     },
+     {
+      "id": "q.cl_exited_balances",
+      "question": "Do any of the tenants who left during the period still owe amounts? Were their balances netted against the security deposits, and is any remaining balance being pursued or has it been written off?",
+      "why": "Closing balances of departed tenants are the population most likely to become bad debts.",
+      "documents": "The ageing of the tenants who left and the netting approvals",
+      "interviewee": "{FINANCE} and {HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.cl_escalation"
+     },
+     {
+      "id": "q.cl_payment_plans",
+      "question": "Are there any approved payment plans or instalment arrangements with tenants? Who approved them and are they being honoured?",
+      "why": "Payment plans are concessions that need approval and tracking, and the planning memorandum requests them.",
+      "documents": "The payment plan approvals",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.cl_escalation"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_receivables",
+     "sub_process": "Monitoring of accounts receivable and follow-up on arrears",
+     "risk": "Arrears may not be detected or escalated on a timely basis, late payment interest may not be charged, and balances owed by tenants who have left may not be pursued, resulting in bad debts.",
+     "controls": [
+      "ctrl.cl_ageing_review",
+      "ctrl.cl_escalation"
+     ],
+     "tests": [
+      "test.cl_receivables"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.cl_receivables",
+     "title": "Monitoring of accounts receivable, arrears, provisions and write-offs",
+     "objective": "To check that the ageing report is reviewed monthly and reconciled to the general ledger, that arrears are followed up and escalated in accordance with the procedures, that late payment interest is charged, and that provisions and write-offs are assessed and approved.",
+     "basis": "Three ageing months selected haphazardly, including the period end. All balances past the final escalation threshold and five balances in the first escalation band are selected.",
+     "population": "Outstanding balances per the monthly ageing reports",
+     "sample_size": "Three months and approximately fifteen tenants",
+     "source": "Monthly ageing reports reconciled to the trial balance, follow-up records and the provision assessment",
+     "steps_intro": "Obtain the ageing reports for three months and select all balances past the final escalation threshold and five balances in the first escalation band, and check that:",
+     "steps": [
+      "The total of the ageing report reconciles to the trade receivables balance in {ERP}.",
+      "The review by the {FINANCE_REVIEWER} is evidenced.",
+      "Reminders and demand notices were sent and dated, and {DEPARTMENT} engaged the tenant at the first escalation threshold.",
+      "Late payment interest was computed in accordance with the {AGREEMENT} and billed.",
+      "Escalation actions were approved in accordance with the Delegation of Authority.",
+      "Balances of tenants who have left were netted against their deposits or pursued, and any write-off was approved.",
+      "The provision for doubtful debts was assessed and approved."
+     ],
+     "detail_title": "Ageing details",
+     "detail_columns": [
+      "Tenant",
+      "Unit",
+      "Ageing month",
+      "Total outstanding ({CURRENCY})",
+      "Past final threshold ({CURRENCY})",
+      "Deposit held ({CURRENCY})"
+     ],
+     "n_rows": 15
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.cl_ageing_trend",
+     "analytic": "Ageing trend by tenant across the period, with tenants past the final escalation threshold and no escalation record flagged.",
+     "source": "Monthly ageing reports and follow-up records",
+     "identifies": "Persistent arrears without follow-up action, or arrears without late interest billed, indicate a weakness in collection.",
+     "tests": [
+      "test.cl_receivables"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.cl_provisions",
+   "title": "Provisions and write-offs",
+   "stage": "cycle",
+   "order": 71,
+   "scope_areas": [
+    "Check that provisions for doubtful debts and write-offs of bad debts are assessed and approved by the appropriate authority."
+   ],
+   "walkthrough": {
+    "sheet": "receivables",
+    "section_title": "Provisions and write-offs",
+    "activities": [
+     {
+      "activity": "At the year end the {FINANCE} Manager assesses the need for a provision for doubtful debts, and any write-off is approved in accordance with the Delegation of Authority.",
+      "performed_by": "{FINANCE} Manager",
+      "frequency": "Annually",
+      "document": "Provision assessment and write-off approvals",
+      "control": {
+       "id": "ctrl.cl_provision",
+       "text": "The assessment of the provision is documented and write-offs are approved.",
+       "owner": "{HEAD_OF_FINANCE}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.cl_provisions",
+      "question": "Were any bad debts provided for or written off during the period? What is the provisioning policy and who approves write-offs?",
+      "why": "Write-offs without approval can conceal misappropriated receipts, and an inadequate provision misstates the receivables.",
+      "documents": "The provision assessment and any write-off approvals",
+      "interviewee": "{FINANCE} Manager",
+      "control": "ctrl.cl_provision"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.cl_provisions",
+     "sub_process": "Provision for doubtful debts and write-offs",
+     "risk": "The provision for doubtful debts may be inadequate and bad debts may be written off without authorisation, so that receivables are overstated or misappropriation is concealed.",
+     "controls": [
+      "ctrl.cl_provision"
+     ],
+     "tests": [
+      "test.cl_receivables"
+     ]
+    }
+   ],
+   "tests": [],
+   "analytics": []
+  }
+ ],
+ "changelog": [
+  {
+   "version": 1,
+   "date": "2026-10-28",
+   "source": "Initial release, derived and generalised from a completed commercial-leasing AWP",
+   "changes": [
+    "13 leasing modules"
+   ]
+  }
+ ]
+}
