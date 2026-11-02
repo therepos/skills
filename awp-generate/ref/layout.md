@@ -1,4 +1,4 @@
-# skill-awp — sheet layout and formatting (enforced by `skill-awp.py`; do not restyle by hand)
+# awp-generate — sheet layout and formatting (enforced by `scripts/awp.py`; do not restyle by hand)
 
 ## Global
 - Arial 8 everywhere. Gridlines off. Tab colour 92D050 (Scope tab black).

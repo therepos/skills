@@ -1,10 +1,10 @@
-# skill-awp — `/awp-learn`: how a finished AWP improves the libraries without making them messy
+# awp-learn — `/awp-learn`: how a finished AWP improves the libraries without making them messy
 
 ## Principle
 A library item is identified by **the control objective and the risk it addresses**, not by its wording. If the finished AWP has a better version of an item that is already in the library, the library item is **replaced**. A new item is added only when no library item addresses that objective. Minor variations (a threshold, a role title, a system name, a frequency) are never new items: they become tokens or stay in the engagement spec.
 
 ## Step 1 — harvest
-`python skill-awp.py learn "<AWP>.xlsx" proposals.json [--tokens tokens.json] [--lib <folder>]`
+`python scripts/learn.py learn "<AWP>.xlsx" proposals.json [--tokens tokens.json] [--lib <folder>]`
 
 - Export is header-driven and tolerant: it finds the `Risk`, `Activity`/`Procedures`, `Question` and `Work done` headers wherever they are, so a workbook edited during fieldwork, or an older-layout file, still harvests (a note is printed for anything it could not find).
 - Tokens come from the workbook's hidden `_build` sheet. A workbook built outside the skill has none: pass `--tokens` with the engagement's words (`{"CLIENT": "…", "CLIENT_SHORT": "…", "SYSTEM": "…", "HEAD_OF_DEPARTMENT": "…", …}`).
@@ -46,12 +46,12 @@ For each proposal decide:
 - A `module` that does not exist is created only when `module_title`, `sheet` (an existing sheet id) and `stage` are all given; otherwise `apply` stops, so a typo cannot create a stray module.
 
 ## Step 4 — apply
-`python skill-awp.py apply proposals.json decisions.json [--lib <folder>]`
+`python scripts/learn.py apply proposals.json decisions.json [--lib <folder>]`
 - Re-scans the final text of each accepted proposal (harvested fields with `edits` applied) and the decision's own ids, titles and token defaults. It refuses the engagement's own words and persons' names outright, and anything on the review list that the decision has not accepted.
 - What it cannot catch: a lower-case proper noun ("the asset-enhancement programme"), a bare surname, a client fact written in plain words. The reviewer is the last line of defence — read every accepted text once as a stranger would.
-- Writes the updated library files **in place** in the library folder (the previous versions are in the release zip and in GitHub; copy the folder first if you want a local backup).
+- Writes the updated library files **in place** in `lib/` (the previous versions are in the release zip and in the repository; copy the folder first if you want a local backup).
 - Writes the item, bumps the library `version`, sets `updated`, appends a changelog entry inside the file (source is recorded as `/awp-learn` with each decision's `reason`, never the file name), re-validates the library (duplicate ids, unresolved references, near-duplicate controls, undeclared tokens) and refuses to save on an error.
-- Output: the updated `skill-awp-lib-*.json` only. Hand them to the skill owners with the changelog line; they run the acceptance tests and publish the next release zip. Layer 1 is untouched.
+- Output: the updated `lib/*.json` only. Hand them to the skill owners with the changelog line; they run the acceptance tests and publish the next release zip. Layer 1 is untouched.
 
 ## Idempotence
-Running `learn` on a workbook that was built from the current libraries and not edited yields zero proposals. A build that was deepened through `overrides` or `extra_modules` will, by design, propose those additions back — that is how engagement content reaches a library. Running it on the same finished AWP twice yields the same proposals. After `apply`, each accepted item carries the fingerprint of the harvested text it came from, so a later `learn` on the same workbook skips it even though the library wording was generalised (`already learned` in the summary).
+Running `learn` on a workbook that was built from the current libraries and not edited yields zero proposals. A build that was deepened through `overrides` or `extra_modules` will, by design, propose those additions back — that is how engagement content reaches a library. Running it on the same finished AWP twice yields the same proposals. After `apply`, each added item carries the fingerprint of the harvested text it came from, so a later `learn` on the same workbook skips it even though the library wording was generalised (`already learned` in the summary); a replaced item simply matches as `same`. Proposal ids are renumbered on every run, so a decisions file is valid only for the proposals file it was written against.

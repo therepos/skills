@@ -2,7 +2,7 @@
  "library": "core",
  "process": null,
  "version": 1,
- "updated": "2026-10-28",
+ "updated": "2026-11-03",
  "description": "Universal modules that apply to every process reviewed: policies and Delegation of Authority, segregation of duties, system access, master file changes, reconciliations and variance analysis. No client data. Process-specific content lives in packs.",
  "token_defaults": {
   "{CEO}": "CEO",
@@ -814,7 +814,7 @@
  "changelog": [
   {
    "version": 1,
-   "date": "2026-10-28",
+   "date": "2026-11-03",
    "source": "Initial release, derived and generalised from a completed commercial-leasing AWP",
    "changes": [
     "8 universal modules"

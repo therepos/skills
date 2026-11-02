@@ -1,4 +1,4 @@
-# skill-awp — JSON reference (selection, spec, library)
+# awp-generate — JSON reference (selection, spec, library)
 
 All files are UTF-8 JSON. Ids are lower-case dotted strings and must be unique within a library (`mod.`, `ctrl.`, `q.`, `risk.`, `test.`, `da.`). References inside libraries use ids only; the script assigns A-numbers.
 
@@ -19,17 +19,17 @@ All files are UTF-8 JSON. Ids are lower-case dotted strings and must be unique w
   "extra": {}
 }
 ```
-- `packs`: names after `skill-awp-lib-pack-`. Core is always loaded. Order matters only when two libraries define the same sheet id (later wins).
+- `packs`: names after `pack-` (`lib/pack-commercial-leasing.json` → `"commercial-leasing"`). Core is always loaded. Order matters only when two libraries define the same sheet id (later wins).
 - `modules` (ids to include; empty = all) and `exclude` narrow the scope. `sheet_map` moves a module to another walkthrough sheet (`{"mod.master_file": "tenant_lease"}`); packs ship their own `sheet_map`.
 - `prior_year`: keyed by risk id (`list` prints them). The text is appended to the RCM "Finding for Design Effectiveness" cell of that risk, to the "why we ask" of the first question on each of the risk's controls, and "This test also follows up on prior-year Observation n." to the objective of the risk's tests (the observation number is read from the text).
 - `background_additions`: keyed by walkthrough sheet id (`list` prints them; a pack's `sheet_map` may move a core module onto a pack sheet). The paragraph is appended to the sheet's background.
-- `overrides`: keyed by any library id (`list` prints them): the fields given replace the library's before composition. For a control id, `activity`, `performed_by`, `frequency` and `document` go to its activity row and everything else (`text`, `owner`, `classification`, `type`) to the control. Tokens may be used in the new text.
+- `overrides`: keyed by any library id (`list` prints them) or by a sheet id: the fields given replace the library's **whole** field before composition (a `steps` override must list every step). For a control id, `activity`, `performed_by`, `frequency` and `document` go to its activity row and everything else (`text`, `owner`, `classification`, `type`) to the control. For a sheet id, `background`, `title` and `index_text` rewrite the sheet (use this rather than `background_additions` when the library's background is wrong rather than incomplete). Tokens may be used in the new text.
 - `extra_modules` / `extra_sheets`: engagement-specific modules and sheets in library format (section 3), composed, numbered and cross-referenced like any pack module; they may reference core and pack ids (e.g. a test id in a risk). They never go into a library unless `/awp-learn` proposes them later.
 - `extra`: replaces a whole top-level spec key verbatim after composition; for targeted changes use `overrides` or edit the spec itself.
 - Unknown ids in any of these produce a `note` from `compose`.
 
 ### Tokens
-Resolution order: core `token_defaults` < pack `token_defaults` < derived from the selection < `tokens`. Keys may be written with or without braces. Derived automatically: `{CLIENT}` = client, `{CLIENT_SHORT}` = client unless given, `{PROCESS}` = process in lower case, `{DEPARTMENT}` = process, `{PERIOD}` = period, `{HEAD_OF_DEPARTMENT}` = "Head of <department>", `{MANAGER}` = "Manager (<department>)", `{STAFF}` = "<department> staff". `python skill-awp.py list` prints every token with its default; `compose` prints the ones left at their default.
+Resolution order: core `token_defaults` < pack `token_defaults` < derived from the selection < `tokens`. Keys may be written with or without braces. Derived automatically: `{CLIENT}` = client, `{CLIENT_SHORT}` = client unless given, `{PROCESS}` = process in lower case, `{DEPARTMENT}` = process, `{PERIOD}` = period, `{HEAD_OF_DEPARTMENT}` = "Head of <department>", `{MANAGER}` = "Manager (<department>)", `{STAFF}` = "<department> staff". `python scripts/awp.py list` prints every token with its default; `compose` prints the ones left at their default.
 
 | Token | Meaning | Core default |
 |---|---|---|
@@ -78,7 +78,7 @@ A library may use any token it declares in its own `token_defaults`; `validate` 
 - `detail_formulas`: per detail column, `{r}` is the row number; `n_steps` must equal the number of numbered audit steps.
 - `stamp: false` suppresses the build stamp and `_build` sheet (not recommended).
 
-## 3. Library (`skill-awp-lib-core.json`, `skill-awp-lib-pack-<process>.json`)
+## 3. Library (`lib/core.json`, `lib/pack-<process>.json`)
 ```json
 {
   "library": "core" | "pack", "process": null | "commercial-leasing", "version": 1, "updated": "2026-10-28", "description": "…",
