@@ -1,4 +1,4 @@
-# skill-awp — how to write each element (generic house examples; tokens shown as they appear in the libraries)
+# awp-generate — how to write each element (generic house examples; tokens shown as they appear in the libraries)
 
 The libraries already carry this depth. This guide is for the content you add in the spec during `/awp-build` and for the text you generalise during `/awp-learn`.
 
