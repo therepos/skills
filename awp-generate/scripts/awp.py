@@ -383,6 +383,8 @@ def compose(selection, folder=None):
             m = json.loads(json.dumps(m)); m['_lib'] = lib.get('library'); modules.append(m)
     sheet_map.update(selection.get('sheet_map') or {})
     ov = selection.get('overrides') or {}; hit = set()
+    for sid, sh in sheets.items():                                           # {"deposits": {"background": "..."}} rewrites a sheet's text
+        if sid in ov: sh.update({k: v for k, v in ov[sid].items() if k != 'id'}); hit.add(sid)
     for m in modules:                                                        # overrides: {"test.x": {"basis": ".."}, "q.y": {"why": ".."}, "ctrl.z": {"text": "..", "activity": ".."}, "risk.r": {"risk": ".."}, "da.a": {..}, "mod.m": {"scope_areas": [..]}}
         if m['id'] in ov: m.update({k: v for k, v in ov[m['id']].items() if k != 'id'}); hit.add(m['id'])
         for coll in ('tests', 'risks', 'analytics'):
@@ -468,6 +470,16 @@ def compose(selection, folder=None):
         lines = by_id[tid]['steps'].split('\n')
         return '\n'.join(l for l in lines[2:] if re.match(r'^\s*(\d+)\.', l) and int(re.match(r'^\s*(\d+)\.', l).group(1)) in nums)
     # ---- RCM: one section per walkthrough sheet, one row per risk; the first risk that uses a test carries its steps
+    owner = {t['id']: m['id'] for t, m in tests_all}
+    carrier = {}                                                             # test id -> risk id that prints its full steps: first risk of the owning module, else first risk anywhere
+    for m in modules:
+        for rk in m.get('risks', []):
+            for tid in rk.get('tests', []):
+                if tid in test_ref and tid not in carrier and owner.get(tid) == m['id']: carrier[tid] = rk['id']
+    for m in modules:
+        for rk in m.get('risks', []):
+            for tid in rk.get('tests', []):
+                if tid in test_ref and tid not in carrier: carrier[tid] = rk['id']
     sections = []; sn = 1; given = set()
     for i, sid in enumerate(sheet_order, 1):
         sh = sheets.get(sid, {'title': sid}); sec = {'title': f"{i}. {sh.get('title')}", 'rows': []}
@@ -478,7 +490,7 @@ def compose(selection, folder=None):
                 tids = [t for t in rk.get('tests', []) if t in test_ref]
                 parts = []; refs = []
                 for tid in tids:
-                    if tid not in given:
+                    if carrier.get(tid) == rk['id'] and tid not in given:
                         given.add(tid); full = by_id[tid]['steps']
                         if rk.get('strategy_steps'): full = '\n'.join(full.split('\n')[:2]) + '\n' + steps_subset(tid, rk['strategy_steps'])
                         parts.append(full)
@@ -922,7 +934,7 @@ if __name__ == '__main__':
     elif cmd == 'compose':
         sel = load_json(a[1]); spec = compose(sel, opt('--lib')); notes = spec.pop('compose_notes', []); save_json(spec, a[2]); iss = validate(spec)
         print('composed', a[2], f"- {len(spec['walkthroughs'])} walkthrough sheets, {len(spec['tests'])} tests, {sum(len(s['rows']) for s in spec['rcm']['sections'])} risks, {len(spec['da']['analytics'])} analytics")
-        for n in notes: print(f'  note: {n}')
+        for n in notes: print('  ' + (n if n.startswith('info:') else 'note: ' + n))
         for s, m in iss: print(f'  {s}: {m}')
     elif cmd == 'validate':
         for p in [x for x in a[1:] if not x.startswith('--') and x != opt('--lib')]:

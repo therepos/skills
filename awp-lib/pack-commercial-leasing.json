@@ -2,7 +2,7 @@
  "library": "pack",
  "process": "commercial-leasing",
  "version": 1,
- "updated": "2026-10-28",
+ "updated": "2026-11-03",
  "description": "Commercial leasing of retail, F&B, office, advertising and similar space: tenant sourcing and contracting, renewals and closures, security deposits, billing (fixed, turnover-based and adjustments), receivables and collections. Generic: no client, tenant, system or amount is named.",
  "token_defaults": {
   "{COUNTERPARTY}": "tenant",
@@ -14,6 +14,7 @@
   "{DEPOSIT_MONTHS_N}": "3",
   "{REFUND_DAYS}": "90",
   "{REFUND_FROM}": "the lease end date",
+  "{REFUND_FROM_COL}": "E",
   "{TRANSACTION_TYPES}": "lease pricing above and below budget, the selection of tenants, the signing of Letters of Offer and Tenancy Agreements, lease variations, rent relief and waivers, credit notes, voids, deposit refunds, forfeitures and write-offs",
   "{PROCESS_ACTIVITIES}": "tenant sourcing, the rental approval paper, the creation and activation of records in {SYSTEM}, the preparation of the Letter of Offer, the confirmation of the security deposit, the refund form and requests for credit notes",
   "{SUBLEDGER}": "accounts receivable",
@@ -522,11 +523,11 @@
       "Handover date",
       "Deposit held ({CURRENCY})",
       "Refund date",
-      "Days from lease end to refund"
+      "Days from {REFUND_FROM} to refund"
      ],
      "n_rows": 10,
      "detail_formulas": {
-      "Days from lease end to refund": "=IF(AND(ISNUMBER(E{r}),ISNUMBER(H{r})),H{r}-E{r},\"\")"
+      "Days from {REFUND_FROM} to refund": "=IF(AND(ISNUMBER({REFUND_FROM_COL}{r}),ISNUMBER(H{r})),H{r}-{REFUND_FROM_COL}{r},\"\")"
      }
     }
    ],
@@ -698,7 +699,7 @@
      "id": "da.cl_deposit_cover",
      "analytic": "Security deposits held compared with {DEPOSIT_MONTHS} months of rent for each lease.",
      "source": "Lease listing and security deposit listing",
-     "identifies": "A deposit below {DEPOSIT_MONTHS} months of rent indicates a shortfall. A deposit held for more than {REFUND_DAYS} days after the lease ended indicates a delayed refund.",
+     "identifies": "A deposit below {DEPOSIT_MONTHS} months of rent indicates a shortfall. A deposit held for more than {REFUND_DAYS} days after {REFUND_FROM} indicates a delayed refund.",
      "tests": [
       "test.cl_deposit_listing",
       "test.cl_closures"
@@ -748,7 +749,7 @@
     "questions": [
      {
       "id": "q.cl_refund_timing",
-      "question": "For the tenants who left during the period, how many refunds are due, how many have been paid, and how long did each take from the lease end date? What is holding up any refund that has not yet been paid?",
+      "question": "For the tenants who left during the period, how many refunds are due, how many have been paid, and how long did each take from {REFUND_FROM}? What is holding up any refund that has not yet been paid?",
       "why": "Late refunds are the most common tenant complaint and a frequent prior-year finding; the committed timeline is tested against the actual days taken.",
       "documents": "The deposit movements for the period and the refund forms",
       "interviewee": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
@@ -1040,7 +1041,7 @@
      "steps_intro": "Select three tenants on the gross turnover or other variable model and three months for each tenant, and check that:",
      "steps": [
       "The monthly declaration or data was received by the deadline and retained.",
-      "The additional rent recomputed by us agrees with the amount invoiced.",
+      "The additional rent recomputed by us, at the rate in the {AGREEMENT} on the declared base above any threshold, agrees with the amount invoiced.",
       "The computation was approved by the {FINANCE_REVIEWER} before the invoice was issued.",
       "The invoice was posted correctly in {SYSTEM} and {ERP}.",
       "The audited figures for the tenant's last financial year were obtained, the additional rent was recomputed, and any adjustment was approved in accordance with the Delegation of Authority.",
@@ -1052,6 +1053,7 @@
       "Tenant",
       "Month",
       "Declared sales or variable base",
+      "Threshold per {AGREEMENT} ({CURRENCY}), if any",
       "Rate per {AGREEMENT} (%)",
       "Additional rent recomputed ({CURRENCY})",
       "Amount invoiced ({CURRENCY})",
@@ -1059,8 +1061,8 @@
      ],
      "n_rows": 9,
      "detail_formulas": {
-      "Additional rent recomputed ({CURRENCY})": "=IF(AND(ISNUMBER(E{r}),ISNUMBER(F{r})),E{r}*F{r}/100,\"\")",
-      "Difference ({CURRENCY})": "=IF(AND(ISNUMBER(G{r}),ISNUMBER(H{r})),H{r}-G{r},\"\")"
+      "Additional rent recomputed ({CURRENCY})": "=IF(AND(ISNUMBER(E{r}),ISNUMBER(G{r})),MAX(E{r}-IF(ISNUMBER(F{r}),F{r},0),0)*G{r}/100,\"\")",
+      "Difference ({CURRENCY})": "=IF(AND(ISNUMBER(H{r}),ISNUMBER(I{r})),I{r}-H{r},\"\")"
      }
     }
    ],
@@ -1426,7 +1428,7 @@
  "changelog": [
   {
    "version": 1,
-   "date": "2026-10-28",
+   "date": "2026-11-03",
    "source": "Initial release, derived and generalised from a completed commercial-leasing AWP",
    "changes": [
     "13 leasing modules"

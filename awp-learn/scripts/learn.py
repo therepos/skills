@@ -89,7 +89,9 @@ def known_words(libs):
 def engagement_words(tokens, libs, denylist=()):
     """Token values that are the engagement's own (not a library default) plus the denylist, and the client name without its corporate suffix: these must never reach a library."""
     defaults = {str(v) for lib in libs for v in (lib.get('token_defaults') or {}).values()} | {'CEO', 'IT', 'Finance'}
-    words = {str(v) for v in (tokens or {}).values() if v and _substitutable(v) and str(v) not in defaults} | set(denylist)
+    libtext = json.dumps([lib.get('modules') for lib in libs] + [lib.get('sheets') for lib in libs], ensure_ascii=False, default=str).lower()
+    generic = lambda v: str(v) in defaults or str(v).lower() in libtext     # a value the libraries already use as plain text ("Leasing", "the period end") is not an engagement word
+    words = {str(v) for v in (tokens or {}).values() if v and _substitutable(v) and not generic(v)} | set(denylist)
     for k in ('{CLIENT}', '{CLIENT_SHORT}'):
         v = str((tokens or {}).get(k) or '')
         short = re.sub(r'\s*\b(Pte\.?|Ltd\.?|Limited|Inc\.?|LLC|Bhd\.?|Sdn\.?|Corp\.?|GmbH|PLC|Co\.?|Private|Company)\b\.?', '', v, flags=re.I).strip(' ,')
@@ -134,11 +136,11 @@ def learn(awp_path, out_path, tokens_in=None, folder=None):
                 if isinstance(a.get('control'), dict): raw[a['control'].get('id')] = a['control'].get('text')
             for coll, key in (('questions', 'question'), ('tests', 'objective'), ('risks', 'risk'), ('analytics', 'analytic')):
                 for x in (m.get('walkthrough', {}).get(coll, []) if coll == 'questions' else m.get(coll, [])): raw[x.get('id')] = x.get(key)
+    deny = build_denylist(spec, tokens); words = engagement_words(tokens, libs, deny)   # from the libraries as shipped, before the engagement's words are filled in
     full = {}                                                            # compare like with like: core defaults < pack defaults < this engagement's words, applied to every library
     for lib in libs: full.update(lib.get('token_defaults') or {})
     full.update(tokens)
     for lib in libs: lib['modules'] = subst(lib['modules'], full)
-    deny = build_denylist(spec, tokens); words = engagement_words(tokens, libs, deny)
     if not tokens: report.append('no tokens: the workbook has no _build sheet and --tokens was not given, so only the client name was redacted; role, department and system names are NOT tokenised - pass --tokens {"CLIENT_SHORT": .., "SYSTEM": .., "HEAD_OF_DEPARTMENT": .., ...} and rerun')
     lib_ctrls, lib_qs, lib_tests, lib_risks, lib_das = [], [], [], [], []
     for lib in libs:
@@ -226,7 +228,7 @@ def apply_proposals(proposals_path, decisions_path, folder=None):
         if lib is None: raise SystemExit(f"{p['id']}: library {d.get('library')} not found (use \"core\" or \"pack:<name>\")")
         h = dict(p['harvested']); h.update(d.get('edits') or {})
         text = json.dumps(h, ensure_ascii=False, default=str)
-        side = json.dumps({k: v for k, v in d.items() if k not in ('accept', 'reason', 'redaction_checked', 'edits', 'replace', 'library')}, ensure_ascii=False)   # ids, titles, token_defaults, links
+        side = json.dumps({k: v for k, v in d.items() if k not in ('accept', 'redaction_checked', 'edits', 'replace', 'library')}, ensure_ascii=False)   # ids, titles, token_defaults, links, reason (the reason goes into the changelog)
         terms = review_terms(text, known, words)                         # re-scan the text as it will be written, edits included
         hard = [w for w in words if _pattern(w, ci=True).search(text) or _pattern(w, ci=True).search(side)] + [m for m in PERSON.findall(text + ' ' + side)]
         if hard: raise SystemExit(f"{p['id']}: the engagement's own words or a person's name are still in the decision or its text {hard} - replace them with tokens or general wording")
