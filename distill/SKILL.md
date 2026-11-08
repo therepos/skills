@@ -64,5 +64,6 @@ No lessons left: change nothing and say so.
 
 - Lead with: done or not, where (PR / file), lines before -> after.
 - Each change: the lesson, and the rule it added, replaced or removed (max 5 bullets).
+- Each lesson left out because the file already covers it, with where (file and section), so a "no changes" result shows what was checked.
 - Protected files skipped, with the lessons to pass to their own command.
 - Outstanding actions for the user carried over from the session.
