@@ -31,3 +31,12 @@ Users never read this repository; they get a self-contained zip. `python release
 | `awp-learn/` | end of engagement: harvest the finished AWP back into the libraries with client-data guards |
 
 Further `awp-*` skills (a review skill, say) read the same `awp-lib/`.
+
+## Standalone skills
+
+| Folder | Role |
+|---|---|
+| `zipper/` | unzip or zip the user's password-protected transfer archives |
+| `distill/` | end of a session: consolidate its lessons into the project's instruction file (targeted edits, no appending; respects `Updates: only via /<command>`) |
+
+Names: one lowercase word for a standalone skill; a family shares a prefix (`awp-*`).
