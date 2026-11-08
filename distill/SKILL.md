@@ -58,6 +58,7 @@ No lessons left: change nothing and say so.
 - Git repo: branch from the latest main, commit, open a PR; merge only if the user allowed merging in this
   session, otherwise give the link.
 - A user skill in Claude: propose the change to its SKILL.md with the skill-proposal tool.
+- Claude Project instructions (cannot be edited from a session): give the updated text to paste.
 - Anything else: update the file in place and send it.
 
 ## 7. Report (short)
