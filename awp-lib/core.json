@@ -1,0 +1,824 @@
+{
+ "library": "core",
+ "process": null,
+ "version": 1,
+ "updated": "2026-11-03",
+ "description": "Universal modules that apply to every process reviewed: policies and Delegation of Authority, segregation of duties, system access, master file changes, reconciliations and variance analysis. No client data. Process-specific content lives in packs.",
+ "token_defaults": {
+  "{CEO}": "CEO",
+  "{IT}": "IT",
+  "{FINANCE}": "Finance",
+  "{FINANCE_PREPARER}": "Finance preparer",
+  "{FINANCE_REVIEWER}": "Finance reviewer",
+  "{HEAD_OF_FINANCE}": "Head of Finance",
+  "{SYSTEM}": "the system",
+  "{ERP}": "the general ledger system",
+  "{COUNTERPARTY}": "counterparty",
+  "{COUNTERPARTIES}": "counterparties",
+  "{COUNTERPARTY_TITLE}": "Counterparty",
+  "{AGREEMENT}": "contract",
+  "{MASTER_FILE}": "master file",
+  "{CURRENCY}": "S$",
+  "{RECON_BALANCES}": "the balances recorded in both systems",
+  "{INTERFACE_FREQUENCY}": "every month",
+  "{TRANSACTION_TYPES}": "each type of transaction in the process",
+  "{PROCESS_ACTIVITIES}": "the key activities in the process",
+  "{SUBLEDGER}": "the sub-ledger",
+  "{VARIANCE_SUBJECT}": "the amounts recorded, by type and by {COUNTERPARTY}",
+  "{MASTER_FILE_KEYER}": "{STAFF}",
+  "{MASTER_FILE_APPROVER}": "{HEAD_OF_DEPARTMENT}"
+ },
+ "denylist": [],
+ "sheets": [
+  {
+   "id": "control_environment",
+   "title": "Overall control environment",
+   "index_text": "Overall control environment, covering policies and procedures, Delegation of Authority, segregation of duties and access rights to {SYSTEM}",
+   "background": "{CLIENT} (\"{CLIENT_SHORT}\") operates the {PROCESS} process through the {DEPARTMENT} department, which is headed by the {HEAD_OF_DEPARTMENT}. {FINANCE} records the transactions, performs the reconciliations and reports the results, and {IT} administers access to {SYSTEM}. {SYSTEM} holds the {MASTER_FILE} and the transaction records, and the accounting entries are transferred to {ERP} {INTERFACE_FREQUENCY}.\n\nThe activities below reflect our understanding from the planning material and, where available, the prior-year review. They are to be confirmed and updated at the walkthrough."
+  },
+  {
+   "id": "reconciliations",
+   "title": "Reconciliations",
+   "index_text": "Reconciliations between {SYSTEM} and {ERP}, and between bank movements and {SUBLEDGER}",
+   "background": "The {FINANCE_PREPARER} extracts the accounting entries from {SYSTEM} and transfers them to {ERP} {INTERFACE_FREQUENCY}. At each month end the {FINANCE_PREPARER} reconciles the two systems for {RECON_BALANCES}, lists the reconciling items, and the {FINANCE_REVIEWER} reviews and signs the reconciliation. Bank reconciliations are prepared by the {FINANCE_PREPARER}, reviewed by the {FINANCE_REVIEWER} and approved by the {HEAD_OF_FINANCE}.\n\nThe reconciliations are the last line of defence for the completeness and accuracy of the balances reported, and the month in which any system or operational change took place is the key month to examine."
+  },
+  {
+   "id": "master_data",
+   "title": "Master data management",
+   "index_text": "Master data management, covering additions, changes and deletions to the {MASTER_FILE}",
+   "background": "The {MASTER_FILE} in {SYSTEM} drives billing and payment. The {MASTER_FILE_KEYER} creates and edits the records from the signed {AGREEMENT}s or other source documents, and the {MASTER_FILE_APPROVER} approves them before activation."
+  }
+ ],
+ "modules": [
+  {
+   "id": "mod.policies_doa",
+   "title": "Policies and procedures and Delegation of Authority",
+   "stage": "control_environment",
+   "order": 10,
+   "scope_areas": [
+    "Check that policies and procedures for {PROCESS} are formalised, complete, version-controlled and approved by authorised personnel, and that they are communicated to employees.",
+    "Assess whether the policies and procedures cover current business practices and identify any inconsistency between the documented procedures and actual practice.",
+    "Check that a Delegation of Authority has been established and approved, and that it covers {TRANSACTION_TYPES}."
+   ],
+   "walkthrough": {
+    "sheet": "control_environment",
+    "section_title": "Policies and procedures and Delegation of Authority",
+    "activities": [
+     {
+      "activity": "The {MANAGER} prepares and updates the standard operating procedure (\"SOP\") for {PROCESS} when there are changes to the operating environment, the systems or the organisation.",
+      "performed_by": "{MANAGER}",
+      "frequency": "As and when required",
+      "document": "Latest SOP, cover page and amendment history",
+      "control": {
+       "id": "ctrl.sop_approval",
+       "text": "The SOP is reviewed and approved by the {HEAD_OF_DEPARTMENT}, who signs the document as evidence of approval. The date of issue, revision date and revision number are recorded on the SOP, and the approved version is stored in a read-only format in the department's shared folder.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "Management maintains a Delegation of Authority that sets out the approving authority and the monetary limits for {TRANSACTION_TYPES}.",
+      "performed_by": "{HEAD_OF_DEPARTMENT} and {HEAD_OF_FINANCE}",
+      "frequency": "As and when required",
+      "document": "Approved Delegation of Authority",
+      "control": {
+       "id": "ctrl.doa_approval",
+       "text": "The Delegation of Authority is approved by the {CEO} or the Board, states the approving authority and the monetary limits for every transaction type, and is reviewed when the organisation or the limits change.",
+       "owner": "{CEO}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.sop_version",
+      "question": "Which version of the SOP is currently in force, and when was it last reviewed and approved? How is the approval evidenced, and where is the approved version kept?",
+      "why": "An SOP without a cover page, version number, evidence of approval or amendment history cannot be relied on as the documented standard, and staff may follow different practices. Prior-year observations on the SOP, if any, are followed up here.",
+      "documents": "The latest SOP in full, the cover page and the amendment history",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.sop_approval"
+     },
+     {
+      "id": "q.sop_current",
+      "question": "Has the SOP been updated for the changes in the period, for example new systems, new products or services, organisational changes or new regulatory requirements? Which parts of the SOP no longer reflect actual practice?",
+      "why": "The scope requires us to assess whether the procedures reflect current practice. Gaps between the SOP and practice are where errors and inconsistent treatment arise.",
+      "documents": "The revised sections of the SOP or any circulars issued to staff",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.sop_approval"
+     },
+     {
+      "id": "q.sop_coverage",
+      "question": "Does the SOP set out the timelines, checklists and thresholds that the process depends on, for example the documents required before a {COUNTERPARTY} is accepted, the timelines for settlements and refunds, and the deadlines for obtaining confirmations from {COUNTERPARTIES}?",
+      "why": "Timelines and checklists are the parts of the SOP most often missing, and their absence is the usual root cause of late or inconsistent processing. Prior-year recommendations on the SOP, if any, are followed up here.",
+      "documents": "The relevant extracts of the SOP and the checklists in use",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.sop_approval"
+     },
+     {
+      "id": "q.doa_walkthrough",
+      "question": "Could you walk us through the current Delegation of Authority for {TRANSACTION_TYPES}? Has it changed since the last review?",
+      "why": "We need to confirm the current thresholds and approvers for every transaction type in scope, because the tests of transactions check approvals against these limits. Prior-year thresholds, if known, are compared with the current ones.",
+      "documents": "The approved Delegation of Authority and the evidence of its approval",
+      "interviewee": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
+      "control": "ctrl.doa_approval"
+     },
+     {
+      "id": "q.doa_signing",
+      "question": "Who signed the {AGREEMENT}s during the period? Were any of them signed by someone other than the authorised signatory, for example during a period of leave, and how was that authorised?",
+      "why": "A high volume of agreements in a short period, or the absence of the authorised signatory, puts pressure on the usual approval process and is where unauthorised signing occurs.",
+      "documents": "Specimen signatures of the authorised signatories and a sample of executed agreements",
+      "interviewee": "{HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.doa_approval"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.policies",
+     "sub_process": "Policies and procedures",
+     "risk": "Policies and procedures for {PROCESS} may not be formalised, kept up to date, approved or communicated to staff. This may result in inconsistent practices within the team and poor handover when staff leave.",
+     "controls": [
+      "ctrl.sop_approval"
+     ],
+     "tests": [
+      "test.policies_doa"
+     ]
+    },
+    {
+     "id": "risk.doa",
+     "sub_process": "Delegation of Authority",
+     "risk": "Transactions in the {PROCESS} process may be approved by personnel who do not have the authority to do so, resulting in transactions that are not in the interest of {CLIENT_SHORT}.",
+     "controls": [
+      "ctrl.doa_approval"
+     ],
+     "tests": [
+      "test.policies_doa"
+     ],
+     "strategy_steps": [
+      5,
+      6
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.policies_doa",
+     "title": "Policies and procedures and Delegation of Authority",
+     "objective": "To check that the policies and procedures and the Delegation of Authority for {PROCESS} are complete, approved, current and communicated to staff, and that any prior-year observation on the maintenance of the SOP has been addressed.",
+     "basis": "Not applicable, as all policies and the Delegation of Authority are reviewed.",
+     "population": "Not applicable",
+     "sample_size": "Not applicable",
+     "source": "Policies, SOPs and the Delegation of Authority",
+     "steps_intro": "Check that:",
+     "steps": [
+      "A complete SOP is in place, with a cover page, version number, evidence of approval and an amendment history.",
+      "The SOP covers all sub-processes in scope and has been updated for the changes in the period.",
+      "The SOP sets out the timelines, checklists and thresholds that the process depends on, including the documents required before a {COUNTERPARTY} is accepted and the timelines for settlements and refunds.",
+      "The SOP has been communicated to the {DEPARTMENT} and {FINANCE} staff and is accessible to them.",
+      "A Delegation of Authority has been approved and is current.",
+      "The Delegation of Authority covers each type of transaction in scope and states the approving authority and the monetary limits."
+     ],
+     "detail_title": "Policies and procedures",
+     "detail_columns": [
+      "Document",
+      "Version or reference",
+      "Date approved",
+      "Approved by",
+      "Communication to staff"
+     ],
+     "n_rows": 6
+    }
+   ],
+   "analytics": []
+  },
+  {
+   "id": "mod.sod",
+   "title": "Segregation of duties",
+   "stage": "control_environment",
+   "order": 20,
+   "scope_areas": [
+    "Check that recording, approval, custody, settlement and reconciliation responsibilities are segregated so that no single person can record, approve and reconcile the same transaction."
+   ],
+   "walkthrough": {
+    "sheet": "control_environment",
+    "section_title": "Segregation of duties",
+    "activities": [
+     {
+      "refer_to": "Please refer to <test.sod> for the segregation of duties matrix."
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.sod_who",
+      "question": "For each of {PROCESS_ACTIVITIES}, who performs the activity and who approves it? In {FINANCE}, who prepares and who reviews the postings and the reconciliations?",
+      "why": "We will use the answers to build the segregation of duties matrix. Small teams, staff turnover and periods of leave are where one person ends up performing both the preparer and the approver role.",
+      "documents": "The organisation chart with the responsibilities of each person",
+      "interviewee": "{HEAD_OF_DEPARTMENT} and {FINANCE}",
+      "control": null
+     },
+     {
+      "id": "q.sod_system",
+      "question": "Can anyone in {DEPARTMENT} post, adjust or settle transactions or amend {COUNTERPARTY} bank details in {SYSTEM}? Can anyone in {FINANCE} amend {AGREEMENT} terms or the {MASTER_FILE}?",
+      "why": "System rights that cross departmental lines allow a user to both initiate and conceal a transaction, and they are often inherited from a predecessor's role rather than granted on purpose.",
+      "documents": "The permission matrix by user group",
+      "interviewee": "{FINANCE} and {IT}",
+      "control": null
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.sod",
+     "sub_process": "Segregation of duties",
+     "risk": "The {DEPARTMENT} team and the {FINANCE} team supporting the process may be small, so that the same person is able to record, approve and reconcile transactions, so that errors or unauthorised transactions are not detected on a timely basis.",
+     "controls": [],
+     "tests": [
+      "test.sod"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.sod",
+     "title": "Segregation of duties",
+     "objective": "To check that the recording, approval, custody, settlement and reconciliation duties within the {PROCESS} process are segregated, or that adequate compensating controls exist where they are not.",
+     "basis": "Not applicable",
+     "population": "Not applicable",
+     "sample_size": "Not applicable",
+     "source": "Interviews, the organisation chart and the {SYSTEM} permission matrix",
+     "steps_intro": "Check that:",
+     "steps": [
+      "The activity is performed and approved by different individuals.",
+      "The system rights do not allow the individual who performs the activity to also approve or activate it.",
+      "Where duties are not segregated, a compensating control exists and is adequate."
+     ],
+     "detail_title": "Segregation of duties matrix",
+     "detail_columns": [
+      "Activity",
+      "Performed by",
+      "Reviewed or approved by",
+      "System right required",
+      "Conflict identified"
+     ],
+     "n_rows": 12
+    }
+   ],
+   "analytics": []
+  },
+  {
+   "id": "mod.system_access",
+   "title": "System access rights",
+   "stage": "control_environment",
+   "order": 30,
+   "scope_areas": [
+    "Check that access rights to {SYSTEM} are granted only to current personnel, are aligned with their roles and responsibilities, and are reviewed periodically by independent personnel."
+   ],
+   "walkthrough": {
+    "sheet": "control_environment",
+    "section_title": "System access rights",
+    "activities": [
+     {
+      "activity": "When a new staff member joins or changes role, the {HEAD_OF_DEPARTMENT} approves the access request form, on which the user group that matches the role is selected, and {IT} creates or amends the account, or instructs the system administrator or external vendor to do so.",
+      "performed_by": "{HEAD_OF_DEPARTMENT} and {IT}",
+      "frequency": "As and when required",
+      "document": "Access request forms and the joiner, mover and leaver listing",
+      "control": {
+       "id": "ctrl.access_joiner",
+       "text": "The access request is approved by the {HEAD_OF_DEPARTMENT} before the account is created or amended, and the approval is evidenced on the request form.",
+       "owner": "{HEAD_OF_DEPARTMENT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "When a staff member leaves, {DEPARTMENT} informs {IT} by email, and {IT} disables the account or instructs the system administrator or external vendor to do so.",
+      "performed_by": "{IT}",
+      "frequency": "As and when required",
+      "document": "Termination emails and the user listing",
+      "control": {
+       "id": "ctrl.access_leaver",
+       "text": "The instruction to disable the account is evidenced by email and the account is disabled on the last working day of the staff member.",
+       "owner": "{IT}",
+       "classification": "Preventive",
+       "type": "Manual"
+      }
+     },
+     {
+      "activity": "On a periodic basis {IT} obtains the user access matrix and the audit log of the administrator and vendor accounts from {SYSTEM}, and reviews them together with the {HEAD_OF_DEPARTMENT}.",
+      "performed_by": "{IT} and {HEAD_OF_DEPARTMENT}",
+      "frequency": "Monthly",
+      "document": "Periodic review evidence for three months",
+      "control": {
+       "id": "ctrl.access_review",
+       "text": "The periodic review is evidenced by a sign-off or an email, and any exception identified is followed up.",
+       "owner": "{IT} and {HEAD_OF_DEPARTMENT}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.access_users",
+      "question": "Could you walk us through the full list of {SYSTEM} users, their user groups and whether every account is linked to a named individual? Are there any generic or shared accounts, and which accounts belong to the system administrator or an external vendor?",
+      "why": "Shared accounts break the audit trail, and vendor or super-user accounts can perform any transaction. Prior-year observations on access, if any, are followed up here.",
+      "documents": "The user listing showing the role, status, creation date and last login date",
+      "interviewee": "{IT}",
+      "control": "ctrl.access_review"
+     },
+     {
+      "id": "q.access_jml",
+      "question": "What is the process when a staff member joins, changes role or leaves? Who approves the request, how is {IT} notified, how quickly is the account created or disabled, and how do you confirm that an account has actually been disabled?",
+      "why": "Staff movement during the period gives us a population to test, and the time between the last working day and the disabling of the account is the exposure.",
+      "documents": "The joiner, mover and leaver listing and a sample of request and termination emails",
+      "interviewee": "{IT}",
+      "control": "ctrl.access_joiner"
+     },
+     {
+      "id": "q.access_review",
+      "question": "Is a periodic review of the user access matrix and of the audit log of the administrator and vendor accounts performed by {DEPARTMENT} and {IT}? Who signs it off, how often, and what exceptions have been found so far?",
+      "why": "The periodic review is the detective control that we rely on for access rights, and it is often committed to after a prior-year finding but not sustained.",
+      "documents": "The review evidence and the audit log extracts for three months",
+      "interviewee": "{IT} and {HEAD_OF_DEPARTMENT}",
+      "control": "ctrl.access_review"
+     },
+     {
+      "id": "q.access_groups",
+      "question": "What can each user group do in {SYSTEM}? Can the staff user group activate its own amendments, and do the {DEPARTMENT} user groups hold payables, bank or general ledger rights that they do not need?",
+      "why": "User groups with the same rights make the approval step meaningless within the system, and rights inherited across modules are a common source of excessive access.",
+      "documents": "The permission-by-group report from {SYSTEM}",
+      "interviewee": "{IT}",
+      "control": "ctrl.access_review"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.access",
+     "sub_process": "System access rights",
+     "risk": "Users may hold access rights in {SYSTEM} that are excessive or incompatible with their roles. Shared accounts and the accounts of resigned staff may remain active, and the activities of the system administrator and external vendor accounts may not be monitored. Unauthorised transactions may therefore not be detected.",
+     "controls": [
+      "ctrl.access_joiner",
+      "ctrl.access_leaver",
+      "ctrl.access_review"
+     ],
+     "tests": [
+      "test.access"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.access",
+     "title": "System access rights",
+     "objective": "To check that access rights to {SYSTEM} are aligned with the roles and responsibilities of the users, that accounts are attributable to named individuals, that the accounts of staff who have left are removed on a timely basis, and that access rights and the audit log are reviewed periodically.",
+     "basis": "All user accounts are reviewed. Three months are selected haphazardly for the periodic review.",
+     "population": "All users per the user listing, and the periodic reviews for the period",
+     "sample_size": "All users and three months",
+     "source": "The user listing, the joiner, mover and leaver listing, the permission-by-group report and the periodic review evidence",
+     "steps_intro": "Check that:",
+     "steps": [
+      "The account belongs to a current employee or an authorised vendor and the user group matches the person's role.",
+      "The account is not a shared or generic account.",
+      "For staff who left, the account was disabled on or soon after the last working day.",
+      "For new joiners, the access was approved by the {HEAD_OF_DEPARTMENT} before the account was created.",
+      "The periodic review of the user access matrix and the audit log was performed and evidenced.",
+      "The user groups do not hold rights that are incompatible with the role, and the staff user group cannot activate its own amendments.",
+      "Vendor and super-user accounts are justified, time-bound and monitored."
+     ],
+     "detail_title": "{SYSTEM} user listing",
+     "detail_columns": [
+      "User name",
+      "Full name",
+      "Department",
+      "User group",
+      "Account status",
+      "Date created",
+      "Last login"
+     ],
+     "n_rows": 15
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.user_access",
+     "analytic": "User access. The {SYSTEM} user listing is compared with the headcount and the joiner, mover and leaver listing, and accounts with no login for more than 90 days, shared accounts and vendor accounts are flagged.",
+     "source": "User listing, joiner, mover and leaver listing and the organisation chart",
+     "identifies": "An account that does not belong to a current employee, a dormant account, or an active account of a person who has left, indicates a weakness in access management.",
+     "tests": [
+      "test.access"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.master_file",
+   "title": "{MASTER_FILE} management",
+   "stage": "cycle",
+   "order": 90,
+   "scope_areas": [
+    "Check that additions, changes and deletions to the {MASTER_FILE} in {SYSTEM} are supported by signed source documents and are approved before activation."
+   ],
+   "walkthrough": {
+    "sheet": "master_data",
+    "section_title": "{MASTER_FILE}",
+    "activities": [
+     {
+      "activity": "The {MASTER_FILE_KEYER} creates or edits the {COUNTERPARTY} record in {SYSTEM} from the signed {AGREEMENT} or other source document. The record is reviewed and the {MASTER_FILE_APPROVER} approves it before it is activated. Closed records are deactivated on the end date, and the list of active and inactive {COUNTERPARTIES} is reviewed every quarter.",
+      "performed_by": "{MASTER_FILE_KEYER} and {MASTER_FILE_APPROVER}",
+      "frequency": "As and when required and quarterly",
+      "document": "{MASTER_FILE} audit trail and approval evidence",
+      "control": {
+       "id": "ctrl.mf_approval",
+       "text": "The record is approved before it is activated, the person who keys the record is not the person who approves or activates it, and the quarterly review of active and inactive records is performed.",
+       "owner": "{MASTER_FILE_APPROVER}",
+       "classification": "Preventive",
+       "type": "Manual and IT"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.mf_walkthrough",
+      "question": "Could you walk us through the creation of a new {COUNTERPARTY} record in {SYSTEM}? Who keys the record, who reviews it, how is it approved and who activates it? Can the same person key and activate a record?",
+      "why": "Approval by email outside the system does not stop a user from activating his or her own entries. The system audit trail is the population for the test of changes.",
+      "documents": "A demonstration on screen, the approval evidence and an extract of the audit trail",
+      "interviewee": "{MASTER_FILE_KEYER} and {MASTER_FILE_APPROVER}",
+      "control": "ctrl.mf_approval"
+     },
+     {
+      "id": "q.mf_bank",
+      "question": "Who can change a {COUNTERPARTY}'s bank account details, payment arrangement and billing address in {SYSTEM}, and how are such changes approved?",
+      "why": "Changes to bank details are the most fraud-sensitive field in the {MASTER_FILE}, and the audit trail of such changes is requested in the planning memorandum.",
+      "documents": "The audit trail of bank detail changes",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.mf_approval"
+     },
+     {
+      "id": "q.mf_review",
+      "question": "How are closed or expired records deactivated in {SYSTEM}, and is the quarterly reconciliation of active and inactive {COUNTERPARTIES} still performed and evidenced?",
+      "why": "The quarterly review is the control over the completeness of the {MASTER_FILE}, and records left active after closure lead to billing or payment after the relationship has ended.",
+      "documents": "The evidence of the quarterly review",
+      "interviewee": "{MASTER_FILE_KEYER}",
+      "control": "ctrl.mf_approval"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.master_file",
+     "sub_process": "{MASTER_FILE} management",
+     "risk": "Additions, changes and deletions to the {MASTER_FILE} may not be supported by signed source documents or approved before activation, and a single user may be able to create and activate a record, so that unauthorised or incorrect records are used for billing or payment.",
+     "controls": [
+      "ctrl.mf_approval"
+     ],
+     "tests": [
+      "test.master_file"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.master_file",
+     "title": "{MASTER_FILE} changes",
+     "objective": "To check that additions, changes and deletions to the {MASTER_FILE} in {SYSTEM} are supported by signed source documents, approved before activation, and performed with segregation between the person who keys the change and the person who activates it.",
+     "basis": "Haphazard from the system audit trail, including all changes to rates and bank details.",
+     "population": "Changes recorded in the audit trail during the period",
+     "sample_size": "Twenty-five",
+     "source": "{MASTER_FILE} audit trail extracted from {SYSTEM}, approval emails and the executed source documents",
+     "steps_intro": "Check that:",
+     "steps": [
+      "The change is supported by an executed {AGREEMENT}, a variation letter or other correspondence.",
+      "The change was approved by the {MASTER_FILE_APPROVER} before it was activated.",
+      "The user who keyed the change is not the user who activated it.",
+      "The values after the change agree with the source document.",
+      "Deactivations are supported by the end date of the relationship."
+     ],
+     "detail_title": "Audit trail details",
+     "detail_columns": [
+      "{COUNTERPARTY_TITLE}",
+      "Field changed",
+      "Value before",
+      "Value after",
+      "Date of change",
+      "Changed by",
+      "Approved by"
+     ],
+     "n_rows": 25
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.master_file_changes",
+     "analytic": "{MASTER_FILE} changes. Changes to rates and bank details are summarised by the user who made the change and the user who approved it, and changes made within five days of a billing or payment run are flagged.",
+     "source": "{MASTER_FILE} audit trail",
+     "identifies": "A change where the same user keyed and activated it, a change with no approver, or a change to the bank details of a {COUNTERPARTY} whose relationship has ended, indicates an unauthorised change.",
+     "tests": [
+      "test.master_file"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mod.recon_systems",
+   "title": "Reconciliation between {SYSTEM} and {ERP}",
+   "stage": "closing",
+   "order": 10,
+   "scope_areas": [
+    "Check that reconciliations between {SYSTEM} and {ERP} for {RECON_BALANCES} are performed regularly, reviewed and that reconciling items are cleared on a timely basis."
+   ],
+   "walkthrough": {
+    "sheet": "reconciliations",
+    "section_title": "Reconciliation between {SYSTEM} and {ERP}",
+    "activities": [
+     {
+      "activity": "The {FINANCE_PREPARER} transfers the {SYSTEM} entries to {ERP} {INTERFACE_FREQUENCY} and, at each month end, reconciles the balances and movements for {RECON_BALANCES} between the two systems, lists the reconciling items, and the {FINANCE_REVIEWER} reviews and signs the reconciliation.",
+      "performed_by": "{FINANCE_PREPARER} and {FINANCE_REVIEWER}",
+      "frequency": "Monthly",
+      "document": "Reconciliations and interface exception reports for the sampled months",
+      "control": {
+       "id": "ctrl.recon_systems",
+       "text": "The reconciliation is prepared, reviewed and signed within the month-end timetable, and the reconciling items are cleared in the following month.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.recon_walkthrough",
+      "question": "Could you walk us through the month-end transfer from {SYSTEM} to {ERP}? What is the file format, who performs the transfer, what is reconciled, how are differences investigated, and who reviews and signs the reconciliation and by when?",
+      "why": "The scope requires the reconciliations to be regular and timely, and a reconciliation that is reviewed on screen leaves no evidence that the control operated.",
+      "documents": "The reconciliations for three months, including the month of any system or operational change",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.recon_systems"
+     },
+     {
+      "id": "q.recon_exceptions",
+      "question": "Were there any interface exceptions or failed transfers during the period? How are they logged and cleared?",
+      "why": "Interface exceptions that are not cleared are the usual cause of differences between the operational system and the general ledger.",
+      "documents": "The exception logs",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.recon_systems"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.recon_systems",
+     "sub_process": "Reconciliation between {SYSTEM} and {ERP}",
+     "risk": "{RECON_BALANCES} recorded in {ERP} may be incomplete or inaccurate when compared with {SYSTEM}, and reconciling items may not be cleared on a timely basis, so that the reported balances are misstated.",
+     "controls": [
+      "ctrl.recon_systems"
+     ],
+     "tests": [
+      "test.reconciliations"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.reconciliations",
+     "title": "Reconciliations",
+     "objective": "To check that the reconciliations between {SYSTEM} and {ERP}, between bank movements and {SUBLEDGER}, and between the bank statements and the cash book are prepared accurately and on a timely basis, reviewed and approved, and that reconciling items are cleared promptly.",
+     "basis": "Three months selected haphazardly, including the month of any system or operational change.",
+     "population": "Monthly reconciliations for each type during the period",
+     "sample_size": "Three months for each type of reconciliation",
+     "source": "Reconciliations with supporting schedules, interface exception reports, bank statements and the report of unapplied items",
+     "steps_intro": "Check that:",
+     "steps": [
+      "The reconciliation agrees with the {SYSTEM} report and with the {ERP} general ledger or the bank statement, and was reperformed by us without difference.",
+      "The reconciliation was prepared within the month-end timetable, and the preparer and the date are evidenced.",
+      "The reconciliation was reviewed by the {FINANCE_REVIEWER} and approved by the {HEAD_OF_FINANCE}, with the dates evidenced.",
+      "Reconciling items are listed with the reason and were cleared in the following month.",
+      "Interface exceptions were logged and resolved.",
+      "Unapplied or unidentified items were investigated and cleared."
+     ],
+     "detail_title": "Reconciliation details",
+     "detail_columns": [
+      "Reconciliation",
+      "Month",
+      "Prepared by",
+      "Date prepared",
+      "Reviewed by",
+      "Date reviewed",
+      "Reconciling items ({CURRENCY})"
+     ],
+     "n_rows": 15
+    }
+   ],
+   "analytics": []
+  },
+  {
+   "id": "mod.recon_bank",
+   "title": "Bank reconciliation and reconciliation of bank movements to the sub-ledger",
+   "stage": "closing",
+   "order": 20,
+   "scope_areas": [
+    "Check that bank movements are reconciled to {SUBLEDGER}, that is, bank receipts and payments are reconciled against the transactions applied in {SYSTEM}, on a regular and timely basis."
+   ],
+   "walkthrough": {
+    "sheet": "reconciliations",
+    "section_title": "Bank reconciliation and reconciliation of bank movements to {SUBLEDGER}",
+    "activities": [
+     {
+      "activity": "The {FINANCE_PREPARER} matches the receipts and payments in the bank statement to the transactions applied in {SYSTEM}, investigates unapplied or unidentified items, and prepares the bank reconciliations, which the {FINANCE_REVIEWER} reviews and the {HEAD_OF_FINANCE} approves.",
+      "performed_by": "{FINANCE_PREPARER}, {FINANCE_REVIEWER} and {HEAD_OF_FINANCE}",
+      "frequency": "Monthly",
+      "document": "Bank reconciliations and the report of unapplied items",
+      "control": {
+       "id": "ctrl.recon_bank",
+       "text": "The bank reconciliation and the reconciliation of bank movements to {SUBLEDGER} are reviewed and approved, and the reconciling items are aged and cleared.",
+       "owner": "{HEAD_OF_FINANCE}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.recon_collections",
+      "question": "How are bank receipts and payments matched to the transactions applied in {SYSTEM}? Is there a separate reconciliation of bank movements to {SUBLEDGER}, or is this covered by the bank reconciliation? How many unapplied or unidentified items are there at month end?",
+      "why": "Unapplied items hide both processing problems and misapplied cash, and the bank reconciliation alone does not show whether each movement reached the right account.",
+      "documents": "The sub-ledger reconciliation and the report of unapplied items",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.recon_bank"
+     },
+     {
+      "id": "q.recon_bank_roles",
+      "question": "For each bank account, who prepares the bank reconciliation, who reviews it, who approves it, and by what date after the month end? How old are the oldest reconciling items?",
+      "why": "Roles change with staff movement, and ageing reconciling items are the symptom of a reconciliation that is prepared but not acted on.",
+      "documents": "The bank reconciliations for three months",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.recon_bank"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.recon_bank",
+     "sub_process": "Bank reconciliation and reconciliation of bank movements to {SUBLEDGER}",
+     "risk": "Bank movements may not be matched to the transactions applied in {SYSTEM}, unapplied items may accumulate, and the bank reconciliation may not be reviewed, so that misapplied or missing receipts and payments are not detected.",
+     "controls": [
+      "ctrl.recon_bank"
+     ],
+     "tests": [
+      "test.reconciliations"
+     ]
+    }
+   ],
+   "tests": [],
+   "analytics": []
+  },
+  {
+   "id": "mod.general",
+   "title": "General walkthrough questions",
+   "stage": "closing",
+   "order": 99,
+   "scope_areas": [],
+   "walkthrough": {
+    "sheet": "reconciliations",
+    "section_title": "General",
+    "activities": [],
+    "questions": [
+     {
+      "id": "q.general_staff_changes",
+      "question": "Have there been any staff changes in {DEPARTMENT}, {FINANCE} or {IT} during the period, and how was the handover documented?",
+      "why": "Poor handover between staff is a recurring root cause of control lapses, and it determines which parts of the period carry the most risk.",
+      "documents": "The organisation chart and any handover notes",
+      "interviewee": "All",
+      "control": null
+     },
+     {
+      "id": "q.general_incidents",
+      "question": "Have there been any {COUNTERPARTY} disputes, complaints, legal cases or incidents during the period?",
+      "why": "These matters may not surface through sample testing and may point to control weaknesses.",
+      "documents": "Any dispute or incident log",
+      "interviewee": "All",
+      "control": null
+     },
+     {
+      "id": "q.general_improvement",
+      "question": "Is there anything in the {PROCESS} process that you consider inefficient or that could be improved?",
+      "why": "The review has both a compliance focus and a value-adding focus.",
+      "documents": "None",
+      "interviewee": "All",
+      "control": null
+     }
+    ]
+   },
+   "risks": [],
+   "tests": [],
+   "analytics": []
+  },
+  {
+   "id": "mod.variance_analysis",
+   "title": "Variance analysis",
+   "stage": "closing",
+   "order": 5,
+   "scope_areas": [
+    "Check that monthly variance analyses are prepared and reviewed, and that significant variances are explained and followed up."
+   ],
+   "walkthrough": {
+    "sheet": "reconciliations",
+    "section_title": "Monthly variance analysis",
+    "activities": [
+     {
+      "activity": "The {FINANCE_PREPARER} prepares a monthly analysis of the variance in {VARIANCE_SUBJECT} against the previous month, with explanations for the variances, and the {FINANCE_REVIEWER} reviews and signs the analysis.",
+      "performed_by": "{FINANCE_PREPARER} and {FINANCE_REVIEWER}",
+      "frequency": "Monthly",
+      "document": "Variance analyses for the sampled months",
+      "control": {
+       "id": "ctrl.variance_review",
+       "text": "The variance analysis is reviewed and the variances above the threshold are explained with reference to the underlying events.",
+       "owner": "{FINANCE_REVIEWER}",
+       "classification": "Detective",
+       "type": "Manual"
+      }
+     }
+    ],
+    "questions": [
+     {
+      "id": "q.variance_prepared",
+      "question": "Is a monthly variance analysis of {VARIANCE_SUBJECT} prepared and reviewed? What threshold triggers an explanation, and how were the largest variances in the period explained and approved?",
+      "why": "The variance analysis is the detective control over completeness and accuracy of revenue, and the months with the largest operational changes are where it matters most.",
+      "documents": "The variance analyses for three months, including the month with the largest change",
+      "interviewee": "{FINANCE}",
+      "control": "ctrl.variance_review"
+     }
+    ]
+   },
+   "risks": [
+    {
+     "id": "risk.variance",
+     "sub_process": "Completeness and accuracy of recorded amounts",
+     "risk": "Amounts may be recorded in the wrong period or omitted, and the monthly variance analysis may not be prepared or reviewed, so that errors in revenue or expense are not detected.",
+     "controls": [
+      "ctrl.variance_review"
+     ],
+     "tests": [
+      "test.variance_analysis"
+     ]
+    }
+   ],
+   "tests": [
+    {
+     "id": "test.variance_analysis",
+     "title": "Variance analysis",
+     "objective": "To check that the monthly variance analyses are prepared and reviewed, and that significant variances, including those arising from operational changes in the period, are explained and followed up.",
+     "basis": "Three months selected haphazardly, including the month with the largest operational change.",
+     "population": "Monthly variance analyses for the period",
+     "sample_size": "Three",
+     "source": "Monthly variance analyses of {VARIANCE_SUBJECT}",
+     "steps_intro": "Check that:",
+     "steps": [
+      "The analysis was prepared by the {FINANCE_PREPARER} on a timely basis.",
+      "The analysis was reviewed by the {FINANCE_REVIEWER} and the review is evidenced.",
+      "Variances above the threshold were explained with reference to the underlying events.",
+      "The variances in the month with the largest operational change were fully explained.",
+      "Unexplained variances were followed up."
+     ],
+     "detail_title": "Variance analysis details",
+     "detail_columns": [
+      "Month",
+      "Amount in the month ({CURRENCY})",
+      "Amount in the prior month ({CURRENCY})",
+      "Variance ({CURRENCY})",
+      "Variance (%)",
+      "Prepared by",
+      "Reviewed by"
+     ],
+     "n_rows": 3,
+     "detail_formulas": {
+      "Variance ({CURRENCY})": "=IF(AND(ISNUMBER(D{r}),ISNUMBER(E{r})),D{r}-E{r},\"\")",
+      "Variance (%)": "=IF(AND(ISNUMBER(E{r}),E{r}<>0),(D{r}-E{r})/E{r},\"\")"
+     }
+    }
+   ],
+   "analytics": [
+    {
+     "id": "da.revenue_trend",
+     "analytic": "Monthly trend of recorded amounts by type across the period, with the month of any operational change highlighted.",
+     "source": "Transaction listing and the trial balance",
+     "identifies": "An unexplained movement, or a month in which a recurring amount was not recorded, indicates a gap in completeness.",
+     "tests": [
+      "test.variance_analysis"
+     ]
+    }
+   ]
+  }
+ ],
+ "changelog": [
+  {
+   "version": 1,
+   "date": "2026-11-03",
+   "source": "Initial release, derived and generalised from a completed commercial-leasing AWP",
+   "changes": [
+    "8 universal modules"
+   ]
+  }
+ ]
+}
