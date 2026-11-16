@@ -10,6 +10,8 @@ What goes into the zip: the skill folder as it is in the repository, plus whatev
   - any skill whose name starts with "awp-"  gets a copy of awp-lib/ as <skill>/lib/
   - awp-learn                                  gets a copy of awp-generate/scripts/awp.py (its engine)
 The zip unpacks to a single folder named after the skill; SKILL.md is its entry point.
+Also writes dist/copilot-<skill>-<version>.zip for Microsoft 365 Copilot Agent Builder's "Upload skill": the same files
+with SKILL.md at the zip root, no directory entries and no Unix attributes (Agent Builder rejects zips that have them).
 Also writes an extension-less 7z copy named YYYYMMDD<letter> when py7zr is installed (for chats that strip extensions).
 """
 import os, sys, shutil, zipfile, datetime as dt
@@ -31,6 +33,13 @@ def build(skill, version):
         for folder, _, files in os.walk(dst):
             for f in sorted(files):
                 p = os.path.join(folder, f); z.write(p, os.path.relpath(p, stage))
+    flat = os.path.join(ROOT, 'dist', f'copilot-{skill}-{version}.zip')
+    names = sorted(os.path.relpath(os.path.join(folder, f), dst).replace(os.sep, '/') for folder, _, files in os.walk(dst) for f in files)
+    names.sort(key=lambda n: n != 'SKILL.md')
+    with zipfile.ZipFile(flat, 'w', zipfile.ZIP_DEFLATED) as z:
+        for n in names:
+            zi = zipfile.ZipInfo(n, dt.datetime.now().timetuple()[:6]); zi.compress_type = zipfile.ZIP_DEFLATED; zi.create_system = 0; zi.external_attr = 0
+            with open(os.path.join(dst, n), 'rb') as fh: z.writestr(zi, fh.read())
     seven = None
     try:
         import py7zr
@@ -39,7 +48,7 @@ def build(skill, version):
     except ImportError: pass
     shutil.rmtree(stage, ignore_errors=True)
     n = len(zipfile.ZipFile(out).namelist())
-    print(f'{out}  ({n} files)' + (f'\n{seven}  (same content, 7z, no extension)' if seven else ''))
+    print(f'{out}  ({n} files)\n{flat}  (same files, flat, for Copilot Agent Builder)' + (f'\n{seven}  (same content, 7z, no extension)' if seven else ''))
     return out
 
 if __name__ == '__main__':
