@@ -22,6 +22,8 @@ Each engagement comes as **two screenshots**, normally in this order:
 1. **Header** — title `ETC Projection | <engagement name>`, a line `Type: … | Client: <CLIENT NAME> | E-<8 digits> | <dates> | <weeks> | Currency: SGD`, and four tiles: Projected Margin, Projected Hours, Projected Cost, Projected Total Engagement Revenue.
 2. **Change in Revenue Recognition (Engagement to Date)** — a small box with one amount, e.g. `▼ 499.33 SGD` (red), `▲ 122.04 SGD` (green) or `0.00 SGD` (no arrow). It does not name the engagement.
 
+A single screenshot that shows both the header and the Change in Revenue Recognition box is also fine — it counts as the complete pair.
+
 Pairing: a revenue-recognition box belongs to the header sent **immediately before** it; if the user sent all headers first and then all boxes, pair them in the same order (1st header ↔ 1st box). Several engagements in one message → one email with one row per engagement, in the order sent.
 
 | Field in the input | Read it from | Rule |
@@ -41,7 +43,7 @@ Read every digit and the sign carefully; zoom in on the image if your tools allo
 ## Steps
 
 1. `python scripts/etcmail.py selftest` (once per session).
-2. Find the uploaded image files in your sandbox (e.g. `/mnt/data/`, or the folder your tools report). Look at each one and classify it as header or revenue-recognition box; pair them as above.
+2. **Find the screenshot files.** Run `python scripts/etcmail.py files` (add the upload folder as an argument if your tools name one). It lists every image file the sandbox really has, newest first, with its shape (`header/full view` or `revenue-recognition strip`) and a fingerprint; `= same picture as` marks copies. Count the screenshots you can see in the user's message (M) and the distinct pictures listed (N). Match each screenshot you see to a file by shape and order, and pair them as above. **Every screenshot goes in — never drop one.** If N < M, some screenshots did not reach the sandbox as files (pasted images often all arrive as `image.png` and overwrite each other): still build with the files you have, take the figures from what you see, and tell the user in the reply (step 5).
 3. Write `../work/etc_input.json` (outside the skill folder):
    ```json
    {"settings": { …the etcmail settings block from the agent's instructions, unchanged… },
@@ -57,7 +59,8 @@ Read every digit and the sign carefully; zoom in on the image if your tools allo
 5. **Reply** — short, nothing else:
    - the `.eml` file as a download;
    - the Subject / To / Cc lines and the table the script printed (so the user can check the figures against the screenshots);
-   - any `WARN:` line, in plain words;
+   - `Screenshots embedded: X of M` (X from `SCREENSHOTS EMBEDDED:`, M from what you saw). If X < M, add one line: *Some screenshots did not reach the file sandbox, so they are missing from the draft. Send them again as attached files (📎) instead of pasting, or take one screenshot per engagement that covers the header down to the Change in Revenue Recognition box.*
+   - any other `WARN:` line, in plain words;
    - one line: *Open the file — Outlook opens it as a new draft with the table and screenshots; check and Send.*
 
 Subject rule (done by the script): one engagement → `[For Approval] ETC Adjustment - <engagement name>`; several → `[For Approval] ETC Adjustment - <client short names, comma-separated>` (e.g. `Acme, MOH`).

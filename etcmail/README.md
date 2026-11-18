@@ -1,6 +1,6 @@
 # etcmail — maintainers' notes
 
-Current: **etcmail v1.1**. `VERSION` lives in `scripts/etcmail.py`; history in `CHANGELOG.md` and GitHub.
+Current: **etcmail v1.2**. `VERSION` lives in `scripts/etcmail.py`; history in `CHANGELOG.md` and GitHub.
 
 ## Layout
 ```

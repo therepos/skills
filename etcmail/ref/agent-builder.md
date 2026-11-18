@@ -53,7 +53,7 @@ Settings fields:
 Title: `ETC email` · Message: `Draft the ETC adjustment email from these screenshots.`
 
 ## Daily use
-1. Open the agent. Paste or attach the screenshots — per engagement, the ETC Projection header and its Change in Revenue Recognition box (header first). Several engagements → one message, one email.
+1. Open the agent. **Attach** the screenshots as files (📎) — pasting several images can leave only the last one in Copilot's file sandbox. Per engagement: the ETC Projection header and its Change in Revenue Recognition box (header first), or one screenshot covering both. Several engagements → one message, one email.
 2. Press Enter without typing anything. To name a different partner for one email, type it ("partner is Jane Tan; previously Lee Lead").
 3. Download the `.eml` and open it: classic Outlook opens a new draft with To, Cc, subject, table, screenshots and signature. Check the table against the screenshots, then Send.
 
