@@ -2,11 +2,13 @@
 etcmail.py - build the "[For Approval] ETC Adjustment" email as an Outlook-ready draft (.eml).
 
     python scripts/etcmail.py selftest                      check the engine (no files left behind)
-    python scripts/etcmail.py settings                      show who the email goes to and the signature in use
-    python scripts/etcmail.py build <input.json> [--out DIR]  write the draft and print the summary for the chat
+    python scripts/etcmail.py build <input.json> [--out DIR] [--settings FILE]
+                                                            write the draft and print the summary for the chat
 
-The model reads the ETC Projection screenshots and writes <input.json> (see SKILL.md); everything about the
-format - subject, recipients, greeting, table, number formats and colours, screenshots, signature - is here.
+The model reads the ETC Projection screenshots and writes <input.json> (see SKILL.md). The user's own details
+(partner, CC, signature) are not part of the skill: they come from the "settings" block in the input, which the
+model copies from the agent's instructions (or from --settings FILE). Everything about the format - subject,
+greeting, table, number formats and colours, screenshots, signature layout - is here.
 Standard library only (Python 3.6+). The .eml carries "X-Unsent: 1", so Outlook opens it as a new draft.
 """
 import sys, os, re, json, html, struct, zlib, tempfile, shutil, mimetypes
@@ -15,26 +17,25 @@ from email.utils import make_msgid, getaddresses, formataddr
 from email import policy
 from email.parser import BytesParser
 
-VERSION = '1.0'
+VERSION = '1.1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
-LIB = os.path.join(SKILL, 'lib')
 GREEN, RED = '#00B050', 'red'
 MAX_IMG_W = 1147  # display width of each screenshot in the email (as in the house emails)
 FONT = 'font-family:"Arial",sans-serif'
 
 
 # ------------------------------------------------------------------ settings
-def load_settings(path=None):
-    """lib/settings.json (the user's own, never in the public repository), else the example with placeholders."""
-    cands = [path] if path else [os.path.join(LIB, 'settings.json'), os.path.join(LIB, 'settings.example.json')]
-    for p in cands:
-        if p and os.path.exists(p):
-            with open(p, encoding='utf-8') as fh: s = json.load(fh)
-            s['_path'] = p
-            s['_placeholder'] = os.path.basename(p) == 'settings.example.json'
-            return s
-    raise SystemExit('ERROR: no lib/settings.json or lib/settings.example.json next to the script')
+def load_settings(inp, path=None, base='.'):
+    """The user's details: --settings FILE first, then the input's "settings" block (copied from the agent's
+    instructions). Nothing personal ships with the skill."""
+    s, src = {}, None
+    if isinstance(inp.get('settings'), dict) and inp['settings']: s, src = dict(inp['settings']), 'input'
+    if path:
+        with open(path, encoding='utf-8') as fh: s, src = json.load(fh), path
+    s['_source'] = src
+    s['_base'] = os.path.dirname(os.path.abspath(path)) if path else base
+    return s
 
 
 # ------------------------------------------------------------------ formatting rules
@@ -245,7 +246,7 @@ def render(c):
         w = html.escape(snd['website'])
         sig_lines.append("<p class=MsoNormal style='margin:0'><span style='font-size:9.0pt;%s'>Website: <a href=\"https://%s\"><span style='color:blue'>%s</span></a></span></p>" % (FONT, w.replace('https://', ''), w))
     logo_cell = ''
-    lp = snd.get('logo') and os.path.join(os.path.dirname(s.get('_path', LIB)), snd['logo'])
+    lp = snd.get('logo') and (snd['logo'] if os.path.isabs(snd['logo']) else os.path.join(s.get('_base', '.'), snd['logo']))
     if lp and os.path.exists(lp):
         with open(lp, 'rb') as fh: ld = fh.read()
         k = sniff(ld)
@@ -286,14 +287,15 @@ def summary(c, path, warns):
            '| Engagement | Change in revenue recognition | Margin after adjustment | Partner In-Charge | Screenshots |', '|---|---:|---:|---|---:|']
     for e in c['engs']:
         out.append('| %s (%s) | %s | %s | %s%s | %d |' % (e['name'], e['code'], fmt_amount(e['rc']), fmt_margin(e['margin']), e['partner'], (' ' + e['note']) if e['note'] else '', len(e['shots'])))
-    if c['settings'].get('_placeholder'): warns = ['settings are the PLACEHOLDER example (lib/settings.example.json): recipients and signature are not real - the owner must add lib/settings.json'] + warns
+    if not c['settings'].get('_source'): warns = ['no "settings" in the input: To, Cc and signature are empty - put your settings block in the agent\'s Instructions (ref/agent-builder.md)'] + warns
     out += [''] + ['WARN: ' + w for w in warns] + ['BUILD OK - etcmail v%s' % VERSION]
     return '\n'.join(out)
 
 def build(inp_path, out_dir=None, settings_path=None):
     with open(inp_path, encoding='utf-8') as fh: inp = json.load(fh)
-    s = load_settings(settings_path)
-    c, errs, warns = compose(inp, s, os.path.dirname(os.path.abspath(inp_path)))
+    base = os.path.dirname(os.path.abspath(inp_path))
+    s = load_settings(inp, settings_path, base)
+    c, errs, warns = compose(inp, s, base)
     if errs:
         print('\n'.join('ERROR: ' + e for e in errs + []) + ('\n' + '\n'.join('WARN: ' + w for w in warns) if warns else '')); sys.exit(2)
     out_dir = out_dir or os.path.dirname(os.path.abspath(inp_path))
@@ -324,7 +326,7 @@ def selftest():
         assert dims(png_bytes(7, 3)) == (7, 3)
         st = {'sender': {'name': 'Test Sender', 'title': 'Risk Consulting', 'company': 'Example Co', 'email': 'sender@example.com'},
               'partners': {'Pat Partner': 'pat.partner@example.com', 'Lee Lead': 'lee.lead@example.com'}, 'default_partner': 'Pat Partner',
-              'cc': ['Cee Copy <cee@example.com>'], '_path': os.path.join(t, 'settings.json')}
+              'cc': ['Cee Copy <cee@example.com>'], '_source': 'input', '_base': t}
         inp = {'engagements': [
             {'engagement': 'ETC Projection | Internal Audit FY26', 'code': 'E- 12345678', 'client': 'ACME CORPORATION LIMITED', 'revenue_change': -499.33,
              'margin': 30, 'partner_note': '(Previously Lee Lead)', 'screenshots': ['r1.png', 'h1.png']},
@@ -356,26 +358,15 @@ def selftest():
         stranger = {'engagements': [dict(inp['engagements'][1], partner='Sam Someone')]}
         c2, e2, w2 = compose(stranger, st, t)
         assert c2['to'] == [] and c2['greeting'] == 'Hi Sam,' and any('no email address' in w for w in w2)
-        s = load_settings()
-        print('SELFTEST PASSED - etcmail v%s · settings: %s' % (VERSION, 'PLACEHOLDER example (add lib/settings.json)' if s['_placeholder'] else
-              '%s, default partner %s' % (os.path.basename(s['_path']), s.get('default_partner'))))
+        assert load_settings({'settings': {'cc': ['x@example.com']}})['_source'] == 'input' and load_settings({})['_source'] is None
+        print('SELFTEST PASSED - etcmail v%s' % VERSION)
     finally:
         shutil.rmtree(t, ignore_errors=True)
-
-def show_settings():
-    s = load_settings(); snd = s.get('sender') or {}
-    print('settings file: %s%s' % (s['_path'], '  (PLACEHOLDER - not the real recipients)' if s['_placeholder'] else ''))
-    print('default partner: %s' % s.get('default_partner'))
-    for k, v in (s.get('partners') or {}).items(): print('partner: %s <%s>' % (k, v))
-    print('cc: %s' % ', '.join(s.get('cc') or []))
-    print('signature: %s | %s | %s' % (snd.get('name'), snd.get('title'), snd.get('email')))
-    print('logo: %s' % ('yes' if snd.get('logo') and os.path.exists(os.path.join(os.path.dirname(s['_path']), snd['logo'])) else 'none'))
 
 if __name__ == '__main__':
     a = sys.argv[1:]
     if not a or a[0] in ('-h', '--help'): print(__doc__); sys.exit(0)
     if a[0] == 'selftest': selftest()
-    elif a[0] == 'settings': show_settings()
     elif a[0] == 'build' and len(a) >= 2:
         out = a[a.index('--out') + 1] if '--out' in a else None
         sp = a[a.index('--settings') + 1] if '--settings' in a else None
