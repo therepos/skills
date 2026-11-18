@@ -7,9 +7,10 @@ etcmail.py - build the "[For Approval] ETC Adjustment" email as an Outlook-ready
                                                             write the draft and print the summary for the chat
 
 The model reads the ETC Projection screenshots and writes <input.json> (see SKILL.md). The user's own details
-(partner, CC, signature) are not part of the skill: they come from the "settings" block in the input, which the
+(partner, CC) are not part of the skill: they come from the "settings" block in the input, which the
 model copies from the agent's instructions (or from --settings FILE). Everything about the format - subject,
-greeting, table, number formats and colours, screenshots, signature layout - is here.
+greeting, table, number formats and colours, screenshots - is here. No signature: the user adds
+their own in Outlook (Insert > Signature).
 Standard library only (Python 3.6+). The .eml carries "X-Unsent: 1", so Outlook opens it as a new draft.
 """
 import sys, os, re, json, html, struct, zlib, tempfile, shutil, mimetypes, hashlib, time
@@ -18,12 +19,12 @@ from email.utils import make_msgid, getaddresses, formataddr
 from email import policy
 from email.parser import BytesParser
 
-VERSION = '1.2'
+VERSION = '1.3'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
 GREEN, RED = '#00B050', 'red'
 MAX_IMG_W = 1147  # display width of each screenshot in the email (as in the house emails)
-FONT = 'font-family:"Arial",sans-serif'
+FONT = 'font-size:11.0pt;font-family:"Arial",sans-serif'  # Arial 11 pt on every run of text, so Outlook never falls back to its default size
 
 
 # ------------------------------------------------------------------ settings
@@ -210,7 +211,7 @@ def span(text, bold=False, colour=None):
 
 def render(c):
     """Return (html, text, images) - images = [(cid, data, kind)]."""
-    s = c['settings']; snd = s.get('sender') or {}
+    s = c['settings']
     images, rows, text_rows = [], [], []
     hdr = ['Engagement', 'Change in revenue recognition', 'Margin after adjustment', ['Partner', 'In-Charge'], 'Supporting Documents']
     widths = [274, 113, 92, 92, MAX_IMG_W + 1]
@@ -239,36 +240,12 @@ def render(c):
     blank = p(span('&nbsp;'))
     intro = s.get('intro', 'Please find the proposed ETC adjustments for your approval:')
     closing = s.get('closing', 'Best regards,')
-    sig_lines = []
-    nm = html.escape(snd.get('name', ''))
-    if nm: sig_lines.append("<p class=MsoNormal style='margin:0'><b><span style='font-size:9.0pt;%s'>%s | </span></b><span style='font-size:9.0pt;%s'>%s</span></p>" % (FONT, nm, FONT, html.escape(snd.get('title', ''))))
-    sig_lines.append("<p class=MsoNormal style='margin:0'><span style='font-size:9.0pt;%s'>&nbsp;</span></p>" % FONT)
-    for key in ('company', 'address'):
-        if snd.get(key): sig_lines.append("<p class=MsoNormal style='margin:0'><span style='font-size:9.0pt;%s'>%s</span></p>" % (FONT, html.escape(snd[key])))
-    contact = []
-    if snd.get('mobile'): contact.append('Mobile: ' + html.escape(snd['mobile']))
-    if snd.get('email'): contact.append('<a href="mailto:%s"><span style="color:#467886">%s</span></a>' % (html.escape(snd['email']), html.escape(snd['email'])))
-    if contact: sig_lines.append("<p class=MsoNormal style='margin:0'><span style='font-size:9.0pt;%s'>%s</span></p>" % (FONT, ' | '.join(contact)))
-    if snd.get('website'):
-        w = html.escape(snd['website'])
-        sig_lines.append("<p class=MsoNormal style='margin:0'><span style='font-size:9.0pt;%s'>Website: <a href=\"https://%s\"><span style='color:blue'>%s</span></a></span></p>" % (FONT, w.replace('https://', ''), w))
-    logo_cell = ''
-    lp = snd.get('logo') and (snd['logo'] if os.path.isabs(snd['logo']) else os.path.join(s.get('_base', '.'), snd['logo']))
-    if lp and os.path.exists(lp):
-        with open(lp, 'rb') as fh: ld = fh.read()
-        k = sniff(ld)
-        if k:
-            cid = make_msgid(domain='etcmail')[1:-1]; images.append((cid, ld, k))
-            lw, lh = dims(ld) or (94, 85)
-            sw = min(lw, 94); sh_ = int(round(lh * sw / float(lw)))
-            logo_cell = "<td valign=top style='padding:0cm 6pt 0cm 0cm'><img width=%d height=%d src=\"cid:%s\" alt=\"logo\"></td>" % (sw, sh_, cid)
-    sig = "<table class=MsoNormalTable border=0 cellpadding=0><tr>%s<td valign=top style='padding:0cm'>%s</td></tr></table>" % (logo_cell, ''.join(sig_lines)) if (nm or logo_cell) else ''
     body = ''.join([p(span(html.escape(c['greeting']))), blank, p(span(html.escape(intro))), blank, table, blank,
-                    p(span(html.escape(closing))), blank, sig])
+                    p(span(html.escape(closing)))])
     doc = ('<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><style>p.MsoNormal{margin:0;font-size:11.0pt;%s}</style></head>'
            '<body lang=EN-GB style="word-wrap:break-word"><div class=WordSection1>%s</div></body></html>') % (FONT, body)
     text = '\n'.join([c['greeting'], '', intro, '', 'Engagement | Change in revenue recognition | Margin after adjustment | Partner In-Charge'] + text_rows +
-                     ['', '(Supporting documents: see the screenshots in the HTML version.)', '', closing, '', snd.get('name', ''), snd.get('title', '')])
+                     ['', '(Supporting documents: see the screenshots in the HTML version.)', '', closing])
     return doc, text, images
 
 def to_eml(c):
@@ -321,7 +298,7 @@ def summary(c, path, warns):
            '| Engagement | Change in revenue recognition | Margin after adjustment | Partner In-Charge | Screenshots |', '|---|---:|---:|---|---:|']
     for e in c['engs']:
         out.append('| %s (%s) | %s | %s | %s%s | %d |' % (e['name'], e['code'], fmt_amount(e['rc']), fmt_margin(e['margin']), e['partner'], (' ' + e['note']) if e['note'] else '', len(e['shots'])))
-    if not c['settings'].get('_source'): warns = ['no "settings" in the input: To, Cc and signature are empty - put your settings block in the agent\'s Instructions (ref/agent-builder.md)'] + warns
+    if not c['settings'].get('_source'): warns = ['no "settings" in the input: To and Cc are empty - put your settings block in the agent\'s Instructions (ref/agent-builder.md)'] + warns
     out += ['', 'SCREENSHOTS EMBEDDED: %d' % sum(len(e['shots']) for e in c['engs'])] + ['WARN: ' + w for w in warns] + ['BUILD OK - etcmail v%s' % VERSION]
     return '\n'.join(out)
 
@@ -358,8 +335,7 @@ def selftest():
         for nm, (w, h) in (('h1.png', (1910, 240)), ('r1.png', (1910, 80)), ('h2.png', (1910, 233)), ('r2.png', (1910, 77))):
             with open(os.path.join(t, nm), 'wb') as fh: fh.write(png_bytes(w, h))
         assert dims(png_bytes(7, 3)) == (7, 3)
-        st = {'sender': {'name': 'Test Sender', 'title': 'Risk Consulting', 'company': 'Example Co', 'email': 'sender@example.com'},
-              'partners': {'Pat Partner': 'pat.partner@example.com', 'Lee Lead': 'lee.lead@example.com'}, 'default_partner': 'Pat Partner',
+        st = {'sender': {'name': 'Test Sender'}, 'partners': {'Pat Partner': 'pat.partner@example.com', 'Lee Lead': 'lee.lead@example.com'}, 'default_partner': 'Pat Partner',
               'cc': ['Cee Copy <cee@example.com>'], '_source': 'input', '_base': t}
         inp = {'engagements': [
             {'engagement': 'ETC Projection | Internal Audit FY26', 'code': 'E- 12345678', 'client': 'ACME CORPORATION LIMITED', 'revenue_change': -499.33,
@@ -380,8 +356,10 @@ def selftest():
         parts = {p['Content-ID'].strip('<>') for p in m.walk() if p['Content-ID']}
         assert len(cids) == 4 and set(cids) <= parts, 'every screenshot must be embedded'
         for needle in ('Hi Pat,', '(499.33)', 'color:red', '122.04', 'color:#00B050', '30.0%', '26.0%', 'Internal Audit FY26 (E-12345678)',
-                       '(Previously Lee Lead)', 'Pat Partner', 'Supporting Documents', 'In-Charge', 'Best regards,', 'Test Sender'):
+                       '(Previously Lee Lead)', 'Pat Partner', 'Supporting Documents', 'In-Charge', 'Best regards,'):
             assert needle in h, needle
+        assert h.count('font-size:11.0pt') >= 20 and 'font-size:9' not in h and 'font-size:12' not in h, 'all text Arial 11 pt'
+        assert 'Test Sender' not in h, 'no signature: users add their own in Outlook'
         dup = {'engagements': [dict(inp['engagements'][0], screenshots=['h1.png', 'h1.png']), dict(inp['engagements'][1], screenshots=['r2.png'])]}
         cd, ed, wd = compose(dup, st, t)
         assert not ed and len(cd['engs'][0]['shots']) == 1 and any('same picture' in w for w in wd) and any('header screenshot is missing' in w for w in wd), wd
@@ -389,7 +367,7 @@ def selftest():
         c1, e1, w1 = compose(one, st, t)
         assert c1['subject'] == '[For Approval] ETC Adjustment - Governance Review FY25-27' and any('no screenshots' in w for w in w1)
         h1 = to_eml(c1)[1]
-        assert '<b><span style=\'font-family:"Arial",sans-serif\'>0.00</span></b>' in h1 and '[paste the ETC Projection' in h1
+        assert '<b><span style=\'font-size:11.0pt;font-family:"Arial",sans-serif\'>0.00</span></b>' in h1 and '[paste the ETC Projection' in h1
         bad = {'engagements': [{'engagement': '', 'code': 'x', 'revenue_change': 'n/a', 'margin': None}]}
         assert len(compose(bad, st, t)[1]) == 4
         stranger = {'engagements': [dict(inp['engagements'][1], partner='Sam Someone')]}
