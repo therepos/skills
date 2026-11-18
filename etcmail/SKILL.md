@@ -17,14 +17,14 @@ Work inside the folder that contains this `SKILL.md`. Run `python scripts/etcmai
 
 ## The screenshots (what to read)
 
-Each engagement comes as **two screenshots**, normally in this order:
+The usual input is **one full-page screenshot per engagement** — the whole ETC Projection page, often with the metrics expanded. Read the values from it; the script cuts it into the two house crops (header, and a strip around the red-bordered Change in Revenue Recognition box) by itself, so put the one file in `screenshots` and do nothing else with it.
+
+The older input — **two screenshots** per engagement — still works:
 
 1. **Header** — title `ETC Projection | <engagement name>`, a line `Type: … | Client: <CLIENT NAME> | E-<8 digits> | <dates> | <weeks> | Currency: SGD`, and four tiles: Projected Margin, Projected Hours, Projected Cost, Projected Total Engagement Revenue.
 2. **Change in Revenue Recognition (Engagement to Date)** — a small box with one amount, e.g. `▼ 499.33 SGD` (red), `▲ 122.04 SGD` (green) or `0.00 SGD` (no arrow). It does not name the engagement.
 
-A single screenshot that shows both the header and the Change in Revenue Recognition box is also fine — it counts as the complete pair.
-
-Pairing: a revenue-recognition box belongs to the header sent **immediately before** it; if the user sent all headers first and then all boxes, pair them in the same order (1st header ↔ 1st box). Several engagements in one message → one email with one row per engagement, in the order sent.
+Pairing (two-screenshot input only): a revenue-recognition box belongs to the header sent **immediately before** it; if the user sent all headers first and then all boxes, pair them in the same order (1st header ↔ 1st box). Several engagements in one message → one email with one row per engagement, in the order sent.
 
 | Field in the input | Read it from | Rule |
 |---|---|---|

@@ -11,7 +11,8 @@ The model reads the ETC Projection screenshots and writes <input.json> (see SKIL
 model copies from the agent's instructions (or from --settings FILE). Everything about the format - subject,
 greeting, table, number formats and colours, screenshots - is here. No signature: the user adds
 their own in Outlook (Insert > Signature).
-Standard library only (Python 3.6+). The .eml carries "X-Unsent: 1", so Outlook opens it as a new draft.
+Standard library only (Python 3.6+); cutting a full-page screenshot into the two house crops also uses Pillow and
+numpy when the sandbox has them (Copilot's does) - without them the full screenshot is embedded instead. The .eml carries "X-Unsent: 1", so Outlook opens it as a new draft.
 """
 import sys, os, re, json, html, struct, zlib, tempfile, shutil, mimetypes, hashlib, time
 from email.message import EmailMessage
@@ -19,7 +20,7 @@ from email.utils import make_msgid, getaddresses, formataddr
 from email import policy
 from email.parser import BytesParser
 
-VERSION = '1.3'
+VERSION = '1.4'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
 GREEN, RED = '#00B050', 'red'
@@ -114,6 +115,61 @@ def dims(data):
     except Exception: pass
     return None
 
+def _bands(rows, gap):
+    out, start, last = [], None, None
+    for y, v in enumerate(rows):
+        if v:
+            if start is None: start = y
+            elif y - last > gap: out.append((start, last + 1)); start = y
+            last = y
+    if start is not None: out.append((start, last + 1))
+    return out
+
+def split_full(data):
+    """A full-page ETC Projection screenshot -> [header crop, Change in Revenue Recognition strip] as PNG bytes,
+    cut the way the house emails are: full width; the header from the top down to just above "Expand to view
+    metrics" (title, client line, the four tiles with their vs Budget line); the strip a band around the red-bordered
+    revenue-recognition box. Returns (crops, None) or (None, reason)."""
+    try:
+        import io
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        return None, 'Pillow/numpy not available'
+    import io
+    im = Image.open(io.BytesIO(data)).convert('RGB')
+    a = np.asarray(im).astype(int)
+    h, w, _ = a.shape
+    sc = w / 1912.0  # the house screenshots are 1912 px wide
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    red = (r - g > 28) & (r - b > 20) & (r > 120)
+    need = int(0.06 * w)
+
+    def run(v, n):
+        c = 0
+        for x in v:
+            c = c + 1 if x else 0
+            if c >= n: return True
+        return False
+    rows = [y for y in np.nonzero(red.sum(axis=1) >= need)[0] if run(red[y], need)]
+    if not rows: return None, 'the red-bordered Change in Revenue Recognition box was not found'
+    top, bot = int(rows[0]), int(rows[-1])
+    if not 20 * sc < bot - top < 200 * sc: return None, 'the Change in Revenue Recognition box has an unexpected size'
+    ink = (a[:top, int(0.22 * w):].mean(axis=2) < 170).sum(axis=1) > 0  # text rows, right of the Options column
+    bs = _bands(ink, int(round(3 * sc)))
+    # bands: title, client line, tile labels, tile numbers (largest font), vs Budget, [Expand to view metrics ...]
+    if len(bs) < 5: return None, 'the four metric tiles were not found above the box'
+    hgt = [e - s_ for s_, e in bs]
+    if not (hgt[3] > hgt[2] and hgt[3] > hgt[4]): return None, 'the four metric tiles were not where expected'
+    end = bs[4][1]
+    cut = bs[5][0] - int(round(4 * sc)) if len(bs) > 5 and bs[5][0] - end < 60 * sc else end + int(round(20 * sc))
+    cut = max(end + 1, min(cut, top))
+    pad = max(2, int(round((bot - top) * 0.07)))
+    out = []
+    for box in ((0, 0, w, cut), (0, max(cut, top - pad), w, min(h, bot + pad + 1))):
+        buf = io.BytesIO(); im.crop(box).save(buf, 'PNG', optimize=True); out.append(buf.getvalue())
+    return out, None
+
 def png_bytes(w, h, rgb=(240, 240, 240)):
     raw = b''.join(b'\x00' + bytes(rgb) * w for _ in range(h))
     def chunk(t, d): return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
@@ -149,7 +205,14 @@ def validate(inp, base):
             if fp in seen:  # same picture twice: pasted images often share one name and overwrite each other
                 warns.append('%s: %s is the same picture as %s - only one copy kept; a screenshot is missing (pasted images can overwrite each other in the sandbox)' % (tag, p, seen[fp])); continue
             seen[fp] = p
-            shots.append({'path': q, 'data': data, 'kind': k, 'size': dims(data)})
+            size = dims(data)
+            if size and size[1] > 0.45 * size[0]:  # a full-page screenshot: cut it into the two house crops
+                crops, why = split_full(data)
+                if crops:
+                    for cdata in crops: shots.append({'path': q, 'data': cdata, 'kind': 'png', 'size': dims(cdata)})
+                    continue
+                warns.append('%s: %s could not be cut into header and revenue-recognition crops (%s) - the full screenshot is embedded' % (tag, p, why))
+            shots.append({'path': q, 'data': data, 'kind': k, 'size': size})
         if missing: warns.append('%s: screenshot(s) not found or unreadable: %s' % (tag, ', '.join(missing)))
         if not shots: warns.append('%s: no screenshots - the Supporting Documents cell says to paste them' % tag)
         elif all(sh['size'] and sh['size'][0] > 12 * sh['size'][1] for sh in shots):
@@ -285,7 +348,7 @@ def list_files(dirs):
                 if not k: continue
                 fp = hashlib.sha1(data).hexdigest()[:10]
                 w, h = dims(data) or (0, 0)
-                kind = 'revenue-recognition strip' if h and w > 12 * h else 'header/full view' if h else '?'
+                kind = 'revenue-recognition strip' if h and w > 12 * h else 'full page (cut automatically)' if h > 0.45 * w else 'header' if h else '?'
                 rows.append((os.path.getmtime(q), q, w, h, len(data), fp, kind, fps.get(fp)))
                 fps.setdefault(fp, q)
     rows.sort(reverse=True)
@@ -363,6 +426,23 @@ def selftest():
         dup = {'engagements': [dict(inp['engagements'][0], screenshots=['h1.png', 'h1.png']), dict(inp['engagements'][1], screenshots=['r2.png'])]}
         cd, ed, wd = compose(dup, st, t)
         assert not ed and len(cd['engs'][0]['shots']) == 1 and any('same picture' in w for w in wd) and any('header screenshot is missing' in w for w in wd), wd
+        try:  # full-page screenshot -> the two house crops (only where Pillow and numpy exist, as in Copilot)
+            import io, numpy as np
+            from PIL import Image
+            pg = np.full((1300, 1912, 3), 248, dtype=np.uint8)
+            for y0, y1 in ((16, 54), (65, 78), (156, 173), (195, 225), (244, 258), (298, 315), (380, 395)): pg[y0:y1, 600:1500] = 40
+            pg[900:903, 1420:1668] = (200, 40, 40); pg[968:971, 1420:1668] = (200, 40, 40); pg[900:971, 1420:1423] = (200, 40, 40); pg[900:971, 1665:1668] = (200, 40, 40)
+            buf = io.BytesIO(); Image.fromarray(pg).save(buf, 'JPEG', quality=90)
+            crops, why = split_full(buf.getvalue())
+            assert crops and len(crops) == 2, why
+            (hw, hh), (sw, sh_) = dims(crops[0]), dims(crops[1])
+            assert hw == sw == 1912 and 258 < hh < 298 and 70 < sh_ < 90, (hh, sh_)
+            with open(os.path.join(t, 'full.jpg'), 'wb') as fh: fh.write(buf.getvalue())
+            cf, ef, wf = compose({'engagements': [dict(inp['engagements'][1], screenshots=['full.jpg'])]}, st, t)
+            assert not ef and not wf and len(cf['engs'][0]['shots']) == 2, wf
+            assert split_full(png_bytes(1912, 1300))[0] is None
+        except ImportError:
+            pass
         one = {'engagements': [dict(inp['engagements'][1], revenue_change=0, screenshots=[])]}
         c1, e1, w1 = compose(one, st, t)
         assert c1['subject'] == '[For Approval] ETC Adjustment - Governance Review FY25-27' and any('no screenshots' in w for w in w1)
