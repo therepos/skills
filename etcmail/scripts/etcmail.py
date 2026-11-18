@@ -2,6 +2,7 @@
 etcmail.py - build the "[For Approval] ETC Adjustment" email as an Outlook-ready draft (.eml).
 
     python scripts/etcmail.py selftest                      check the engine (no files left behind)
+    python scripts/etcmail.py files [DIR ...]                list the image files the sandbox really has (size, shape, fingerprint)
     python scripts/etcmail.py build <input.json> [--out DIR] [--settings FILE]
                                                             write the draft and print the summary for the chat
 
@@ -11,13 +12,13 @@ model copies from the agent's instructions (or from --settings FILE). Everything
 greeting, table, number formats and colours, screenshots, signature layout - is here.
 Standard library only (Python 3.6+). The .eml carries "X-Unsent: 1", so Outlook opens it as a new draft.
 """
-import sys, os, re, json, html, struct, zlib, tempfile, shutil, mimetypes
+import sys, os, re, json, html, struct, zlib, tempfile, shutil, mimetypes, hashlib, time
 from email.message import EmailMessage
 from email.utils import make_msgid, getaddresses, formataddr
 from email import policy
 from email.parser import BytesParser
 
-VERSION = '1.1'
+VERSION = '1.2'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
 GREEN, RED = '#00B050', 'red'
@@ -120,7 +121,7 @@ def png_bytes(w, h, rgb=(240, 240, 240)):
 
 # ------------------------------------------------------------------ the email
 def validate(inp, base):
-    errs, warns, engs = [], [], []
+    errs, warns, engs, seen = [], [], [], {}
     rows = inp.get('engagements') or []
     if not rows: errs.append('no engagements in the input')
     for n, e in enumerate(rows, 1):
@@ -143,9 +144,15 @@ def validate(inp, base):
             with open(q, 'rb') as fh: data = fh.read()
             k = sniff(data)
             if not k: missing.append(p + ' (not an image)'); continue
+            fp = hashlib.sha1(data).hexdigest()
+            if fp in seen:  # same picture twice: pasted images often share one name and overwrite each other
+                warns.append('%s: %s is the same picture as %s - only one copy kept; a screenshot is missing (pasted images can overwrite each other in the sandbox)' % (tag, p, seen[fp])); continue
+            seen[fp] = p
             shots.append({'path': q, 'data': data, 'kind': k, 'size': dims(data)})
         if missing: warns.append('%s: screenshot(s) not found or unreadable: %s' % (tag, ', '.join(missing)))
         if not shots: warns.append('%s: no screenshots - the Supporting Documents cell says to paste them' % tag)
+        elif all(sh['size'] and sh['size'][0] > 12 * sh['size'][1] for sh in shots):
+            warns.append('%s: only the Change in Revenue Recognition strip is embedded - the ETC Projection header screenshot is missing' % tag)
         # header (tall) before the Change in Revenue Recognition box (flat), whatever order they came in
         shots.sort(key=lambda s: (s['size'][0] / float(s['size'][1])) if s['size'] and s['size'][1] else 0)
         engs.append({'name': name, 'code': code, 'client': (e.get('client') or '').strip(), 'short': (e.get('client_short') or '').strip(), 'rc': rc, 'margin': mg,
@@ -282,13 +289,40 @@ def to_eml(c):
 def safe_name(s):
     return re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', s).strip().rstrip('.')[:150] or 'ETC Adjustment'
 
+IMG_EXT = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')
+
+def list_files(dirs):
+    """Every image file under the given folders (default: the usual upload folders and the current one), newest
+    first, with what the build needs to tell them apart: shape, size and a fingerprint."""
+    dirs = dirs or [d for d in ('/mnt/data', '/mnt/user-data/uploads', '/mnt/uploads', '/tmp/inputs', os.getcwd()) if os.path.isdir(d)]
+    rows, fps = [], {}
+    for d in dirs:
+        for root, sub, files in os.walk(d):
+            sub[:] = [x for x in sub if not x.startswith('.') and x not in ('scripts', 'ref', '__pycache__')]
+            for f in files:
+                q = os.path.join(root, f)
+                try:
+                    with open(q, 'rb') as fh: data = fh.read()
+                except OSError: continue
+                k = sniff(data)
+                if not k: continue
+                fp = hashlib.sha1(data).hexdigest()[:10]
+                w, h = dims(data) or (0, 0)
+                kind = 'revenue-recognition strip' if h and w > 12 * h else 'header/full view' if h else '?'
+                rows.append((os.path.getmtime(q), q, w, h, len(data), fp, kind, fps.get(fp)))
+                fps.setdefault(fp, q)
+    rows.sort(reverse=True)
+    for mt, q, w, h, n, fp, kind, dup in rows:
+        print('%s  %5dx%-4d %8d B  %s  %-26s %s%s' % (time.strftime('%H:%M:%S', time.localtime(mt)), w, h, n, fp, kind, q, ('  = same picture as ' + dup) if dup else ''))
+    print('IMAGES: %d file(s), %d distinct picture(s)' % (len(rows), len(fps)))
+
 def summary(c, path, warns):
     out = ['DRAFT: %s' % path, 'Subject: %s' % c['subject'], 'To: %s' % (', '.join(c['to']) or '(none - add in Outlook)'), 'Cc: %s' % (', '.join(c['cc']) or '-'), '',
            '| Engagement | Change in revenue recognition | Margin after adjustment | Partner In-Charge | Screenshots |', '|---|---:|---:|---|---:|']
     for e in c['engs']:
         out.append('| %s (%s) | %s | %s | %s%s | %d |' % (e['name'], e['code'], fmt_amount(e['rc']), fmt_margin(e['margin']), e['partner'], (' ' + e['note']) if e['note'] else '', len(e['shots'])))
     if not c['settings'].get('_source'): warns = ['no "settings" in the input: To, Cc and signature are empty - put your settings block in the agent\'s Instructions (ref/agent-builder.md)'] + warns
-    out += [''] + ['WARN: ' + w for w in warns] + ['BUILD OK - etcmail v%s' % VERSION]
+    out += ['', 'SCREENSHOTS EMBEDDED: %d' % sum(len(e['shots']) for e in c['engs'])] + ['WARN: ' + w for w in warns] + ['BUILD OK - etcmail v%s' % VERSION]
     return '\n'.join(out)
 
 def build(inp_path, out_dir=None, settings_path=None):
@@ -348,6 +382,9 @@ def selftest():
         for needle in ('Hi Pat,', '(499.33)', 'color:red', '122.04', 'color:#00B050', '30.0%', '26.0%', 'Internal Audit FY26 (E-12345678)',
                        '(Previously Lee Lead)', 'Pat Partner', 'Supporting Documents', 'In-Charge', 'Best regards,', 'Test Sender'):
             assert needle in h, needle
+        dup = {'engagements': [dict(inp['engagements'][0], screenshots=['h1.png', 'h1.png']), dict(inp['engagements'][1], screenshots=['r2.png'])]}
+        cd, ed, wd = compose(dup, st, t)
+        assert not ed and len(cd['engs'][0]['shots']) == 1 and any('same picture' in w for w in wd) and any('header screenshot is missing' in w for w in wd), wd
         one = {'engagements': [dict(inp['engagements'][1], revenue_change=0, screenshots=[])]}
         c1, e1, w1 = compose(one, st, t)
         assert c1['subject'] == '[For Approval] ETC Adjustment - Governance Review FY25-27' and any('no screenshots' in w for w in w1)
@@ -367,6 +404,7 @@ if __name__ == '__main__':
     a = sys.argv[1:]
     if not a or a[0] in ('-h', '--help'): print(__doc__); sys.exit(0)
     if a[0] == 'selftest': selftest()
+    elif a[0] == 'files': list_files(a[1:])
     elif a[0] == 'build' and len(a) >= 2:
         out = a[a.index('--out') + 1] if '--out' in a else None
         sp = a[a.index('--settings') + 1] if '--settings' in a else None
