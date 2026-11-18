@@ -20,11 +20,12 @@ from email.utils import make_msgid, getaddresses, formataddr
 from email import policy
 from email.parser import BytesParser
 
-VERSION = '1.5'
+VERSION = '1.6'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
 GREEN, RED = '#00B050', 'red'
-MAX_IMG_W = 1147  # display width of each screenshot in the email (as in the house emails)
+IMG_SCALE = 0.6   # screenshots are shown at 60% of their pixel size, as in the house emails (1912 px -> 1147 px): sharp in Outlook
+MAX_IMG_W = 1147  # width of the Supporting Documents column when there is no screenshot
 FONT = 'font-size:11.0pt;font-family:"Arial",sans-serif'  # Arial 11 pt on every run of text, so Outlook never falls back to its default size
 
 
@@ -291,7 +292,8 @@ def render(c):
     s = c['settings']
     images, rows, text_rows = [], [], []
     hdr = ['Engagement', 'Change in revenue recognition', 'Margin after adjustment', ['Partner', 'In-Charge'], 'Supporting Documents']
-    widths = [274, 113, 92, 92, MAX_IMG_W + 1]
+    shown = [int(round(sh['size'][0] * IMG_SCALE)) for e in c['engs'] for sh in e['shots'] if sh['size']]
+    widths = [274, 113, 92, 92, (max(shown) if shown else MAX_IMG_W) + 1]
     head = ''.join(td([span(x, True, 'black') for x in (h if isinstance(h, list) else [h])], widths[i], head=True, first=(i == 0),
                       center=(i != 0), pad=(i < 3)) for i, h in enumerate(hdr))
     rows.append('<tr>%s</tr>' % head)
@@ -304,7 +306,7 @@ def render(c):
             cid = make_msgid(domain='etcmail')[1:-1]
             images.append((cid, sh['data'], sh['kind']))
             w, h = sh['size'] or (MAX_IMG_W, 0)
-            dw = min(w, MAX_IMG_W); dh = int(round(h * dw / float(w))) if h else 0
+            dw = int(round(w * IMG_SCALE)); dh = int(round(h * dw / float(w))) if h else 0
             pics.append('<img width=%d%s style="width:%dpx%s" src="cid:%s" alt="ETC screenshot">' % (dw, ' height=%d' % dh if dh else '', dw, ';height:%dpx' % dh if dh else '', cid))
         if not pics: pics = [span('[paste the ETC Projection and Change in Revenue Recognition screenshots here]', colour='#7F7F7F')]
         cells = [td(span(eng), widths[0], first=True, center=False), td(amt, widths[1]), td(span(fmt_margin(e['margin'])), widths[2]),
@@ -436,6 +438,7 @@ def selftest():
                        '(Previously Lee Lead)', 'Pat Partner', 'Supporting Documents', 'In-Charge', 'Best regards,'):
             assert needle in h, needle
         assert h.count('font-size:11.0pt') >= 20 and 'font-size:9' not in h and 'font-size:12' not in h, 'all text Arial 11 pt'
+        assert h.count('<img width=1146 ') == 4, 'screenshots shown at 60% of their pixel size'
         assert 'Test Sender' not in h, 'no signature: users add their own in Outlook'
         dup = {'engagements': [dict(inp['engagements'][0], screenshots=['h1.png', 'h1.png']), dict(inp['engagements'][1], screenshots=['r2.png'])]}
         cd, ed, wd = compose(dup, st, t)
