@@ -38,6 +38,6 @@ Further `awp-*` skills (a review skill, say) read the same `awp-lib/`.
 |---|---|
 | `zipper/` | unzip or zip the user's password-protected transfer archives |
 | `distill/` | end of a session: consolidate its lessons into the project's instruction file (targeted edits, no appending; respects `Updates: only via /<command>`) |
-| `etcmail/` | ETC Projection screenshots → the "[For Approval] ETC Adjustment" email to the partner as an Outlook draft (Copilot agent skill; real recipients in a git-ignored `lib/settings.json`) |
+| `etcmail/` | ETC Projection screenshots → the "[For Approval] ETC Adjustment" email to the partner as an Outlook draft (Copilot agent skill; each user's partner, CC and signature go in their agent's instructions) |
 
 Names: one lowercase word for a standalone skill; a family shares a prefix (`awp-*`).
