@@ -1,6 +1,6 @@
 # etcmail — maintainers' notes
 
-Current: **etcmail v1.4**. `VERSION` lives in `scripts/etcmail.py`; history in `CHANGELOG.md` and GitHub.
+Current: **etcmail v1.5**. `VERSION` lives in `scripts/etcmail.py`; history in `CHANGELOG.md` and GitHub.
 
 ## Layout
 ```
@@ -22,7 +22,7 @@ input as `"settings"`. Outside Copilot, `build ... --settings FILE` reads the sa
 ## Design decisions
 - The model reads the screenshots (judgement); the script owns every format rule (subject, greeting, table, number format and colour, image embedding), so the email is identical whatever model Copilot uses.
 - `.eml` with `X-Unsent: 1` rather than `.msg`: plain standard library, and classic Outlook opens it as an editable draft with the images inline.
-- A full-page screenshot is cut by the script, not the model: the red-bordered revenue-recognition box and the text bands of the four tiles are found by pixel, so the crops match the house emails every time.
+- A full-page screenshot is cut by the script, not the model: the light-blue revenue-recognition box and the text bands of the four tiles are found by pixel, so the crops match the house emails every time.
 - Screenshots are ordered within an engagement by shape (the flat revenue-recognition box goes second), so upload order inside a pair does not matter.
 - Partner and CC are not on the screenshots and differ per user: they come from the settings block in the agent's Instructions, not the skill, so the zip is reusable and holds nothing personal. The partner can be overridden per engagement from the user's words.
 - No signature: the draft ends at "Best regards," and each user adds their own Outlook signature, so the agent works for anyone without signature settings.

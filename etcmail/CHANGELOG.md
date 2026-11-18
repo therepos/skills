@@ -2,6 +2,7 @@
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-11-18 | 1.5 | Full-page cut made robust: the Change in Revenue Recognition box is found by its light-blue fill, so compressed or resized screenshots (as Copilot passes them) are still cut; proportional fallback for the header. Partner In-Charge cell is left blank when no partner is known (no `[Partner]` placeholder). |
 | 2026-11-18 | 1.4 | One full-page screenshot per engagement is enough: the script cuts it into the house crops (header down to just above "Expand to view metrics"; a full-width strip around the red-bordered Change in Revenue Recognition box) with Pillow/numpy, falling back to the full screenshot with a warning. |
 | 2026-11-18 | 1.3 | No signature: the draft ends at "Best regards," and users add their own Outlook signature; `sender` dropped from the settings block. Every run of text is Arial 11 pt explicitly. |
 | 2026-11-18 | 1.2 | Screenshots that never reach the sandbox are caught instead of silently dropped: new `files` command (lists the image files the sandbox really has, with shape and fingerprint), duplicate pictures and a missing header screenshot are warned, the reply reports `Screenshots embedded: X of M` with the fix. One screenshot per engagement (header down to the revenue-recognition box) is accepted. |

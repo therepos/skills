@@ -20,7 +20,7 @@ from email.utils import make_msgid, getaddresses, formataddr
 from email import policy
 from email.parser import BytesParser
 
-VERSION = '1.4'
+VERSION = '1.5'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(HERE)
 GREEN, RED = '#00B050', 'red'
@@ -142,29 +142,43 @@ def split_full(data):
     h, w, _ = a.shape
     sc = w / 1912.0  # the house screenshots are 1912 px wide
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
-    red = (r - g > 28) & (r - b > 20) & (r > 120)
-    need = int(0.06 * w)
-
-    def run(v, n):
-        c = 0
-        for x in v:
-            c = c + 1 if x else 0
-            if c >= n: return True
-        return False
-    rows = [y for y in np.nonzero(red.sum(axis=1) >= need)[0] if run(red[y], need)]
-    if not rows: return None, 'the red-bordered Change in Revenue Recognition box was not found'
-    top, bot = int(rows[0]), int(rows[-1])
-    if not 20 * sc < bot - top < 200 * sc: return None, 'the Change in Revenue Recognition box has an unexpected size'
+    # the box is found by its light-blue fill (a large area, so it survives JPEG compression and resizing; the thin
+    # red border does not)
+    fill = (b - r >= 14) & (r >= 185) & (b >= 230)
+    need = int(0.07 * w)
+    rows = {}
+    for y in np.nonzero(fill.sum(axis=1) >= need)[0]:
+        best, c = (0, 0), 0
+        for x, v in enumerate(fill[y]):
+            c = c + 1 if v else 0
+            if c > best[0]: best = (c, x - c + 1)
+        if best[0] >= need: rows[int(y)] = best
+    cands, cur = [], None
+    for y in sorted(rows):
+        L, x0 = rows[y]
+        if cur and y - cur['y1'] <= 22 * sc and min(cur['x1'], x0 + L) - max(cur['x0'], x0) > 0.5 * min(L, cur['x1'] - cur['x0']):
+            cur['y1'] = y; cur['n'] += 1; cur['x0'] = min(cur['x0'], x0); cur['x1'] = max(cur['x1'], x0 + L)
+        else:
+            cur = {'y0': y, 'y1': y, 'n': 1, 'x0': x0, 'x1': x0 + L}; cands.append(cur)
+    cands = [c for c in cands if 20 * sc < c['y1'] - c['y0'] < 200 * sc and c['x1'] - c['x0'] < 0.3 * w]
+    if not cands: return None, 'the Change in Revenue Recognition box was not found'
+    box = max(cands, key=lambda c: c['n'])
+    soft = ((b - r >= 9) & (r >= 150))[:, box['x0']:box['x1']].mean(axis=1)  # grow to the box edges (title row, border)
+    top, bot, lim = box['y0'], box['y1'], int(round(30 * sc))
+    while top > 0 and box['y0'] - top < lim and soft[top - 1] >= 0.25: top -= 1
+    while bot < h - 1 and bot - box['y1'] < lim and soft[bot + 1] >= 0.25: bot += 1
     ink = (a[:top, int(0.22 * w):].mean(axis=2) < 170).sum(axis=1) > 0  # text rows, right of the Options column
     bs = _bands(ink, int(round(3 * sc)))
     # bands: title, client line, tile labels, tile numbers (largest font), vs Budget, [Expand to view metrics ...]
-    if len(bs) < 5: return None, 'the four metric tiles were not found above the box'
     hgt = [e - s_ for s_, e in bs]
-    if not (hgt[3] > hgt[2] and hgt[3] > hgt[4]): return None, 'the four metric tiles were not where expected'
-    end = bs[4][1]
-    cut = bs[5][0] - int(round(4 * sc)) if len(bs) > 5 and bs[5][0] - end < 60 * sc else end + int(round(20 * sc))
-    cut = max(end + 1, min(cut, top))
-    pad = max(2, int(round((bot - top) * 0.07)))
+    if len(bs) >= 5 and hgt[3] > hgt[2] and hgt[3] > hgt[4]:
+        end = bs[4][1]
+        cut = bs[5][0] - int(round(4 * sc)) if len(bs) > 5 and bs[5][0] - end < 60 * sc else end + int(round(20 * sc))
+        cut = max(end + 1, min(cut, top))
+    elif a[:max(1, int(0.02 * w)), :max(1, int(0.03 * w))].mean() < 90:  # page starts at the black logo: house proportion
+        cut = min(top, int(round(0.122 * w)))
+    else: return None, 'the four metric tiles were not found above the box'
+    pad = max(2, int(round(5 * sc)))
     out = []
     for box in ((0, 0, w, cut), (0, max(cut, top - pad), w, min(h, bot + pad + 1))):
         buf = io.BytesIO(); im.crop(box).save(buf, 'PNG', optimize=True); out.append(buf.getvalue())
@@ -284,7 +298,7 @@ def render(c):
     for e in c['engs']:
         eng = html.escape(e['name']) + (' (%s)' % e['code'] if e['code'] else '')
         amt = span(fmt_amount(e['rc']), True, amount_colour(e['rc']))
-        partner = [span(html.escape(e['partner'] or '[Partner]'))] + (['&nbsp;', span(html.escape(e['note']))] if e['note'] else [])
+        partner = [span(html.escape(e['partner'] or ''))] + (['&nbsp;', span(html.escape(e['note']))] if e['note'] else [])
         pics = []
         for sh in e['shots']:
             cid = make_msgid(domain='etcmail')[1:-1]
@@ -431,7 +445,7 @@ def selftest():
             from PIL import Image
             pg = np.full((1300, 1912, 3), 248, dtype=np.uint8)
             for y0, y1 in ((16, 54), (65, 78), (156, 173), (195, 225), (244, 258), (298, 315), (380, 395)): pg[y0:y1, 600:1500] = 40
-            pg[900:903, 1420:1668] = (200, 40, 40); pg[968:971, 1420:1668] = (200, 40, 40); pg[900:971, 1420:1423] = (200, 40, 40); pg[900:971, 1665:1668] = (200, 40, 40)
+            pg[900:971, 1420:1668] = (220, 236, 252); pg[900:903, 1420:1668] = (200, 40, 40); pg[968:971, 1420:1668] = (200, 40, 40); pg[900:971, 1420:1423] = (200, 40, 40); pg[900:971, 1665:1668] = (200, 40, 40)
             buf = io.BytesIO(); Image.fromarray(pg).save(buf, 'JPEG', quality=90)
             crops, why = split_full(buf.getvalue())
             assert crops and len(crops) == 2, why
