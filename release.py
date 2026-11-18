@@ -38,12 +38,12 @@ def build(skill, version):
     names.sort(key=lambda n: n != 'SKILL.md')
     with zipfile.ZipFile(flat, 'w', zipfile.ZIP_DEFLATED) as z:
         for n in names:
-            zi = zipfile.ZipInfo(n, dt.datetime.now().timetuple()[:6]); zi.compress_type = zipfile.ZIP_DEFLATED; zi.create_system = 0; zi.external_attr = 0
+            zi = zipfile.ZipInfo(n, dt.datetime.now().timetuple()[:6]); zi.compress_type = zipfile.ZIP_DEFLATED; zi.create_system = 0; zi.external_attr = 0o600 << 16  # as in the zip Agent Builder accepted (copilot-awp-generate-2.1)
             with open(os.path.join(dst, n), 'rb') as fh: z.writestr(zi, fh.read())
     seven = None
     try:
         import py7zr
-        seven = os.path.join(ROOT, 'dist', dt.date.today().strftime('%Y%m%d') + {'awp-generate': 'a', 'awp-learn': 'b'}.get(skill, 'z'))
+        seven = os.path.join(ROOT, 'dist', dt.date.today().strftime('%Y%m%d') + {'awp-generate': 'a', 'awp-learn': 'b', 'etcmail': 'c'}.get(skill, 'z'))
         with py7zr.SevenZipFile(seven, 'w') as z: z.writeall(dst, skill)
     except ImportError: pass
     shutil.rmtree(stage, ignore_errors=True)
