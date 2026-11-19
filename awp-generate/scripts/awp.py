@@ -1,5 +1,5 @@
 """
-awp.py  v2.1 - internal-audit work program (AWP) builder: compose, validate, build, verify (skill awp-generate).
+awp.py  v2.2 - internal-audit work program (AWP) builder: compose, validate, build, verify (skill awp-generate).
 
 Run from the folder that contains SKILL.md:
 
@@ -26,7 +26,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string
 
-VERSION = '2.1'
+VERSION = '2.2'
 HERE = os.path.dirname(os.path.abspath(__file__))                       # .../<skill>/scripts
 SKILL = os.path.dirname(HERE)                                            # .../<skill>
 LIB_DIRS = [os.path.join(SKILL, 'lib'), os.path.join(os.path.dirname(SKILL), 'awp-lib')]   # release zip layout, then repository layout
@@ -152,20 +152,28 @@ def build_walkthrough(wb, spec, P, wt):
             aligns = [CTR, TOPW, CTRW, CTRW, CTR, LEFTW, CTRW, CTRW, CTRW, LEFTW, CTRW]
             for j, (v, al) in enumerate(zip(vals, aligns)): put(ws, f'{get_column_letter(j+1)}{r}', v, F(True, RED) if j == 4 else F(), align=al, border=B_THIN)
             fit_height(ws, r, [(vals[1], 42.6), (vals[5], 50.4), (vals[9], 59.1), (vals[2], 19), (vals[10], 16)]); r += 1; n += 1
-    r += 1
-    put(ws, f'A{r}', wt.get('questions_title') or 'Walkthrough questions for the team lead (to be used during the walkthrough session)', F(True, WHITE), F_BAND, TOP, B_THIN)
-    for col in 'BCDEFGHIJK': ws[f'{col}{r}'].fill = F_BAND; ws[f'{col}{r}'].border = B_THIN
-    ws.merge_cells(f'A{r}:K{r}'); r += 1
-    for col, h in [('A', 'No.'), ('B', 'Question'), ('E', 'Why we are asking, including the prior-year context'), ('G', 'Documents to request during the session'), ('I', 'Proposed interviewee'), ('J', 'Response noted during the walkthrough'), ('K', 'Control Reference No.')]: put(ws, f'{col}{r}', h, F(True), F_HDR, CTRW, B_THIN)
-    for col in 'ABCDEFGHIJK': ws[f'{col}{r}'].border = B_THIN; ws[f'{col}{r}'].fill = F_HDR
-    ws.merge_cells(f'B{r}:D{r}'); ws.merge_cells(f'E{r}:F{r}'); ws.merge_cells(f'G{r}:H{r}'); ws.row_dimensions[r].height = 22.5; r += 1
-    for i, q in enumerate(wt.get('questions') or [{}, {}, {}], 1):
-        vals = {'A': q.get('no', i), 'B': ph(q.get('question'), 'Open question that makes the interviewee describe the step'), 'E': ph(q.get('why'), 'Why we ask - the risk, the prior-year point or the change we want to understand'), 'G': ph(q.get('documents'), 'Documents to request'), 'I': ph(q.get('interviewee'), 'Interviewee'), 'J': q.get('response') or '', 'K': q.get('control_ref') or ''}
-        for col, v in vals.items(): put(ws, f'{col}{r}', v, F(True, RED) if col == 'K' else F(), align=CTR if col == 'A' else (CTRW if col in 'IK' else LEFTW), border=B_THIN)
-        for col in 'ABCDEFGHIJK': ws[f'{col}{r}'].border = B_THIN
-        ws.merge_cells(f'B{r}:D{r}'); ws.merge_cells(f'E{r}:F{r}'); ws.merge_cells(f'G{r}:H{r}')
-        fit_height(ws, r, [(vals['B'], 80), (vals['E'], 66), (vals['G'], 32), (vals['J'], 59)]); r += 1
     widths(ws, {'A': 12.6, 'B': 42.6, 'C': 19, 'D': 19.1, 'E': 16, 'F': 50.4, 'G': 16.1, 'H': 16.6, 'I': 12.9, 'J': 59.1, 'K': 16.1}); ws.freeze_panes = 'A10'; finish(ws)
+
+QUESTIONS_TITLE = 'Walkthrough questions for the team lead (to be used during the walkthrough sessions; one tab for the whole process)'
+def questions_ref(P): return f'{P}200Q'
+def build_questions(wb, spec, P):
+    """One tab with the walkthrough questions of every sub-process, grouped by walkthrough sheet. The team's notes go in 'Response noted during the walkthrough'."""
+    name = questions_ref(P); ws = wb.create_sheet(name); ref_box(ws, 'H', name); header(ws, spec, P)
+    put(ws, 'A7', QUESTIONS_TITLE, F(True, WHITE), F_BAND, TOP, B_THIN)
+    for col in 'BCDEFGH': ws[f'{col}7'].fill = F_BAND; ws[f'{col}7'].border = B_THIN
+    ws.merge_cells('A7:H7')
+    hdrs = ['No.', 'WP Ref', 'Question', 'Why we are asking, including the prior-year context', 'Documents to request during the session', 'Proposed interviewee', 'Response noted during the walkthrough', 'Control Reference No.']
+    for j, h in enumerate(hdrs): put(ws, f'{get_column_letter(j+1)}8', h, F(True), F_HDR, CTRW, B_THIN)
+    ws.row_dimensions[8].height = 22.5; r = 9; n = 1
+    for wt in spec['walkthroughs']:
+        put(ws, f'A{r}', f"{wt['ref']}  {ph(wt.get('title'), 'Sub-process title')}", F(True), F_SECTION, TOP, B_THIN)
+        for col in 'BCDEFGH': ws[f'{col}{r}'].fill = F_SECTION; ws[f'{col}{r}'].border = B_THIN
+        ws.merge_cells(f'A{r}:H{r}'); ws.row_dimensions[r].height = 13.5; r += 1
+        for q in wt.get('questions') or [{}, {}, {}]:
+            vals = [n, wt['ref'], ph(q.get('question'), 'Open question that makes the interviewee describe the step'), ph(q.get('why'), 'Why we ask - the risk, the prior-year point or the change we want to understand'), ph(q.get('documents'), 'Documents to request'), ph(q.get('interviewee'), 'Interviewee'), q.get('response') or '', q.get('control_ref') or '']
+            for j, (v, al) in enumerate(zip(vals, [CTR, CTR, LEFTW, LEFTW, LEFTW, CTRW, LEFTW, CTRW])): put(ws, f'{get_column_letter(j+1)}{r}', v, F(True, RED) if j in (1, 7) else F(), align=al, border=B_THIN)
+            fit_height(ws, r, [(vals[2], 60), (vals[3], 50), (vals[4], 30), (vals[6], 70)]); r += 1; n += 1
+    widths(ws, {'A': 12.6, 'B': 9, 'C': 60, 'D': 50, 'E': 30, 'F': 16, 'G': 70, 'H': 16.1}); ws.freeze_panes = 'D9'; finish(ws)
 
 def test_layout(t):
     detail = t.get('detail_columns') or ['Document / item', 'Reference', 'Date', 'Amount (S$)']
@@ -281,7 +289,8 @@ def build_awp(spec, out_path):
     build_index(wb, spec, P, P, 'Index', [('Risk and control matrix', f'{P}100'), ('Process walkthrough', f'{P}200'), ('Testing of controls', f'{P}300'), ('Data Analytics', da_ref)], 'G', {'A': 12, 'B': 64, 'C': 8.6, 'D': 12.1, 'E': 7.4, 'F': 8.4, 'G': 14.6}, stamp=st)
     concl = {t['ref']: test_layout(t)[7] for t in spec['tests']}
     build_rcm(wb, spec, P, concl)
-    build_index(wb, spec, P, f'{P}200', 'Process walkthrough', [(wt.get('index_text') or ph(wt.get('title'), 'Sub-process'), wt['ref']) for wt in spec['walkthroughs']], 'G', {'A': 13.6, 'B': 64, 'C': 18.9, 'D': 7, 'E': 8.4, 'F': 7.4, 'G': 11})
+    build_index(wb, spec, P, f'{P}200', 'Process walkthrough', [('Walkthrough questions (all sub-processes)', questions_ref(P))] + [(wt.get('index_text') or ph(wt.get('title'), 'Sub-process'), wt['ref']) for wt in spec['walkthroughs']], 'G', {'A': 13.6, 'B': 64, 'C': 18.9, 'D': 7, 'E': 8.4, 'F': 7.4, 'G': 11})
+    build_questions(wb, spec, P)
     for wt in spec['walkthroughs']: build_walkthrough(wb, spec, P, wt)
     build_index(wb, spec, P, f'{P}300', 'Testing', [(ph(t.get('title'), 'Test title'), t['ref']) for t in spec['tests']], 'E', {'A': 13.6, 'B': 64, 'C': 18.9, 'D': 7, 'E': 9.7, 'F': 11})
     for t in spec['tests']: build_test(wb, spec, P, t)
@@ -742,6 +751,22 @@ def export_spec(path, report=None):
                     a, b = ws.cell(r, 1).value, ws.cell(r, 2).value
                     if a is not None and b is not None: wt['questions'].append({'no': a, 'question': b, 'why': ws.cell(r, cw).value if cw else None, 'documents': ws.cell(r, cd).value if cd else None, 'interviewee': ws.cell(r, ci).value if ci else None, 'response': ws.cell(r, crsp).value if crsp else None, 'control_ref': ws.cell(r, cc).value if cc else None})
             spec['walkthroughs'].append(wt)
+    if questions_ref(P) in wb.sheetnames:                          # v2.2 layout: one questions tab for every sub-process (older workbooks carry the questions on each walkthrough sheet)
+        ws = wb[questions_ref(P)]; hr, _ = _find(ws, 'Question', exact=True); by_ref = {w['ref']: w for w in spec['walkthroughs']}; cur = None
+        if hr:
+            h = _hdr_map(ws, hr); col = lambda pref: next((v for k, v in h.items() if k.startswith(pref)), None)
+            cq, cwp, cw, cd, ci, crsp, cc = col('question'), col('wp ref'), col('why'), col('documents'), col('proposed interviewee'), col('response'), col('control reference')
+            for r in range(hr + 1, ws.max_row + 1):
+                a, q = ws.cell(r, 1).value, ws.cell(r, cq).value
+                if q is None:
+                    if isinstance(a, str) and a.split() and a.split()[0] in by_ref: cur = by_ref[a.split()[0]]
+                    continue
+                wp = str(ws.cell(r, cwp).value).strip() if cwp and ws.cell(r, cwp).value is not None else None
+                wt = by_ref.get(wp) or cur
+                if wt is None: report.append(f'{ws.title} row {r}: question not under any walkthrough sheet'); continue
+                g = lambda c: ws.cell(r, c).value if c else None
+                wt['questions'].append({'no': a, 'question': q, 'why': g(cw), 'documents': g(cd), 'interviewee': g(ci), 'response': g(crsp), 'control_ref': g(cc)})
+        else: report.append(f'{ws.title}: question table not found')
     for name in wb.sheetnames:
         if re.fullmatch(P + r'3\d\d', name) and name != f'{P}300':
             ws = wb[name]; t = {'ref': name}

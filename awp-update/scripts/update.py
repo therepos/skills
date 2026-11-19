@@ -1,27 +1,26 @@
 """
-update.py  v1.1 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
+update.py  v2.0 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
 
 Run from the folder that contains SKILL.md:
 
     python scripts/update.py selftest                                 proves the environment and prints the versions (run first)
     python scripts/update.py show   AWP.xlsx                          overview: sheets, counts, what is still open
-    python scripts/update.py show   AWP.xlsx A202 [A203 ...]          one sheet as text: background, activities, questions with the staff's responses
+    python scripts/update.py show   AWP.xlsx A202 [A203 ...]          one sheet as text: background, activities, its walkthrough questions with the staff's notes
     python scripts/update.py show   AWP.xlsx rcm [full]               the risk and control matrix as text (full: with every audit step)
     python scripts/update.py check  AWP.xlsx UPDATE.json [...]        validates update files; writes nothing
     python scripts/update.py apply  AWP.xlsx OUT.xlsx UPDATE.json [...]   applies them: OUT.xlsx + "OUT - update log.xlsx", then verifies OUT
 
-    --force  apply although something on a changed sheet cannot be carried over (the script lists exactly what would be lost).
-
-The model writes the update files (what changes, from which source, on what basis); this script does everything else:
-it rewrites only the sheets that change, in the house format, keeps every other sheet as it is, never overwrites a staff
-response unless told to, renumbers, keeps the cross-references consistent and logs every change with its before and after.
+The model writes the update files (what changes, from which source, on what basis); this script edits the workbook in place:
+it writes only the cells that change, inserts a row for a new activity or risk and removes a row that no longer applies.
+Everything else on every sheet stays as the team left it - notes typed beside a table, comments, highlighting, the walkthrough
+questions and the responses. It numbers new controls, renumbers rows, keeps the cross-references consistent and logs every change.
 Only dependency: openpyxl. Shares its engine with awp-generate: scripts/awp.py next to this file (release zip) or
-../../awp-generate/scripts/awp.py (repository). The format lives there - never restyle a workbook by hand.
+../../awp-generate/scripts/awp.py (repository).
 """
 import copy, json, os, re, sys, zipfile, datetime as dt, importlib.util
 from collections import Counter
 
-VERSION = '1.1'
+VERSION = '2.0'
 HERE = os.path.dirname(os.path.abspath(__file__)); SKILL = os.path.dirname(HERE)
 try: sys.stdout.reconfigure(errors='replace')
 except Exception: pass
@@ -33,12 +32,10 @@ from openpyxl.utils import get_column_letter
 
 A_FIELDS = ('activity', 'performed_by', 'frequency', 'control', 'owner', 'classification', 'type', 'de_finding', 'document')
 A_REQUIRED = ('activity', 'performed_by', 'frequency', 'control', 'owner', 'classification', 'type', 'document')
-Q_FIELDS = ('question', 'why', 'documents', 'interviewee', 'response', 'control_ref')
-Q_REQUIRED = ('question', 'why', 'documents', 'interviewee')
 R_FIELDS = ('sub_process', 'risk', 'control_no', 'de_finding', 'audit_strategy', 'wp_ref')
 R_REQUIRED = ('sub_process', 'risk', 'control_no', 'de_finding', 'audit_strategy', 'wp_ref')
 T_FIELDS = ('objective', 'basis', 'population', 'sample_size', 'source', 'steps', 'detail_title', 'detail_columns', 'detail_formulas', 'n_rows')
-OPS = ('background', 'section', 'activity', 'add_activity', 'remove_activity', 'question', 'add_question', 'risk', 'add_risk', 'test')
+OPS = ('background', 'section', 'activity', 'add_activity', 'remove_activity', 'risk', 'add_risk', 'test')
 PENDING = 'to be concluded after the walkthrough'
 PLANNED = re.compile(r'(?:^|\n|[(:\[]\s*)\s*expected\b|\bexpected\s+(?:process|control|activit|procedure|practice|flow|step)', re.I)   # planning labels: "Expected: ...", "Expected process", "(expected)" - what we assumed before the walkthrough
 SHOULD = re.compile(r'\bshould\b|\b(?:is|are) expected to\b|\bis to be\b|\bare to be\b|\bwill be\b|\bis required to\b|\bare required to\b', re.I)   # what ought to happen, not what is done
@@ -75,13 +72,69 @@ def read(path):
                 if blank(v) or (isinstance(v, str) and v.startswith('=')): rows[k]['testing_result'] = ''
             k += 1
     for r in rows: r['_k'] = key(r.get('sn'))
+    L = locate_rcm(ws)
+    if len(L['rows']) != len(rows): raise SystemExit(f'{P}100: the rows of the risk table could not be matched ({len(L["rows"])} found, {len(rows)} read)')
+    for i, (r, row) in enumerate(zip(rows, L['rows'])): r['_row'] = row; r['_pos'] = i
+    spec['rcm']['_loc'] = L
     for w in spec['walkthroughs']:
-        for s in w['sections']:
+        L = locate_wt(wbf[w['ref']], w['ref']); seq = []; n = 0
+        for j, s in enumerate(w['sections']):
+            s['_spos'] = j
+            if not (j == 0 and blank(s.get('title'))): seq.append(('s', s))
             for a in s['activities']:
-                a['_k'] = key(a.get('no'))
-                if 'refer_to' not in a: a['control_ref'] = a.get('control_ref') or ''      # '' stops the builder from numbering a control the workbook left unnumbered
+                a['_k'] = key(a.get('no')); a['_pos'] = n; n += 1; seq.append(('a', a))
+                if 'refer_to' not in a: a['control_ref'] = a.get('control_ref') or ''
+        if [k for k, _ in seq] != [k for k, _ in L['items']]: raise SystemExit(f"{w['ref']}: the rows of the activity table could not be matched to what was read; check that every activity row has a number in column A")
+        for (k, o), (_, row) in zip(seq, L['items']): o['_row'] = row
+        w['_loc'] = L
         for q in w['questions']: q['_k'] = key(q.get('no'))
     return wbf, spec, rep
+
+def locate_rcm(ws):
+    hr, _ = awp._find(ws, 'Risk', exact=True); h = awp._hdr_map(ws, hr) if hr else {}; col = lambda *names: next((h[n] for n in names if n in h), None)
+    cols = dict(sub_process=col('sub-process'), risk=col('risk'), control_no=col('control no.', 'control no'), de_finding=col('finding for design effectiveness'), audit_strategy=col('audit strategy'), testing_result=col('testing result'), wp_ref=col('wp ref'))
+    if not hr or not cols['risk'] or not cols['sub_process']: raise SystemExit(f'{ws.title}: the header row of the risk table was not found')
+    rows = [r for r in range(hr + 1, ws.max_row + 1) if ws.cell(r, 1).value is not None and not (ws.cell(r, cols['risk']).value is None and ws.cell(r, cols['sub_process']).value is None)]
+    return {'hr': hr, 'cols': cols, 'rows': rows}
+
+def locate_wt(ws, name):
+    hr, _ = awp._find(ws, 'Activity', col='B', exact=True)
+    if not hr: hr, _ = awp._find(ws, 'Procedures', col='B', exact=True)
+    if not hr: raise SystemExit(f'{name}: the header row of the activity table was not found')
+    qr, _ = awp._find(ws, 'Question', col='B', exact=True); h = awp._hdr_map(ws, hr); col = lambda *names: next((h[n] for n in names if n in h), None)
+    cols = dict(performed_by=col('performed by'), frequency=col('frequency'), control_ref=col('control reference no.', 'control ref. no.', 'control reference no'), control=col('existing controls / mitigating measures', 'controls identified'), owner=col('control owner'), classification=col('control classification'), type=col('control type'), de_finding=col('finding for design effectiveness', 'weakness in controls design'), document=col('walkthrough document'))
+    items = []
+    for r in range(hr + 1, ((qr - 2) if qr else ws.max_row) + 1):
+        a, b = ws.cell(r, 1).value, ws.cell(r, 2).value
+        if a is not None and b is None and not isinstance(a, (int, float)): items.append(('s', r))
+        elif a is not None and b is not None: items.append(('a', r))
+    br, _ = awp._find(ws, 'Background', col='A')
+    return {'hr': hr, 'qr': qr, 'cols': cols, 'items': items, 'br': br, 'ncols': max([c for c in cols.values() if c] + [2])}
+
+def other_notes(wbf, spec, w):
+    """Text the team typed outside the table cells of a walkthrough sheet or beside its questions, and cell comments: evidence to read, never changed."""
+    known = set(); out = []
+    def walk(o):
+        if isinstance(o, dict): [walk(v) for k, v in o.items() if not k.startswith('_')]
+        elif isinstance(o, list): [walk(v) for v in o]
+        elif not blank(o): known.add(norm(o))
+    walk(w); ws = wbf[w['ref']]; L = w['_loc']
+    def scan(cells, skip=lambda c: False):
+        for c in cells:
+            if c.comment: out.append(f'{c.parent.title}!{c.coordinate} (comment): {str(c.comment.text).strip()}')
+            v = c.value
+            if blank(v) or (isinstance(v, str) and v.startswith('=')) or skip(c) or norm(v) in known: continue
+            out.append(f'{c.parent.title}!{c.coordinate}: {str(v).strip()}')
+    scan([c for row in ws.iter_rows(min_row=L['hr'] + 1) for c in row], lambda c: L['qr'] and c.row in (L['qr'], L['qr'] - 1))
+    qs = awp.questions_ref(spec['prefix'])
+    if qs in wbf.sheetnames:
+        t = wbf[qs]; hr, _ = awp._find(t, 'Question', exact=True); refs = {x['ref'] for x in spec['walkthroughs']}; cur = None; mine = []
+        for row in t.iter_rows(min_row=(hr or 0) + 1):
+            a = row[0].value
+            if isinstance(a, str) and a.split() and a.split()[0] in refs and all(blank(c.value) for c in row[1:]): cur = a.split()[0]; continue
+            if cur == w['ref']: mine += list(row)
+        scan(mine, lambda c: norm(c.value) == norm(w['ref']))
+    return out
 
 def controls(spec): return [a['control_ref'] for w in spec['walkthroughs'] for s in w['sections'] for a in s['activities'] if a.get('control_ref')]
 def remaining(spec):
@@ -138,10 +191,13 @@ def show(path, sheets):
                 if 'refer_to' in a: L.append(f"activity {a['_k']} | cross-reference only: {a['refer_to']}"); continue
                 L.append(f"activity {a['_k']} | control {a.get('control_ref') or '(none)'}" + (' | PLANNING WORDING - rewrite as the actual process' if planned(a.get('activity'), a.get('control')) else ''))
                 L += [f'    {f}: {v(a.get(f))}' for f in A_FIELDS]
-        L.append('QUESTIONS')
+        qs = awp.questions_ref(P)
+        L.append('WALKTHROUGH QUESTIONS AND THE STAFF\'S NOTES (' + (f'on tab {qs}' if qs in _.sheetnames else 'on this sheet') + ') - evidence to read; an update never changes them')
         for q in w['questions']:
             L.append(f"question {q['_k']} | control {q.get('control_ref') or '(none)'} | interviewee: {v(q.get('interviewee'))}")
             L += [f'    {f}: {v(q.get(f))}' for f in ('question', 'why', 'documents', 'response')]
+        notes = other_notes(_, spec, w)
+        if notes: L.append('OTHER NOTES THE TEAM TYPED OUTSIDE THE TABLE CELLS, AND COMMENTS - read them as staff notes'); L += ['    ' + x for x in notes]
         rows = [r for s in spec['rcm']['sections'] for r in s['rows'] if set(refs_of(r.get('control_no'))) & {a.get('control_ref') for s2 in w['sections'] for a in s2['activities']}]
         L.append(f'RISKS IN {P}100 THAT RELY ON THESE CONTROLS' + ('' if rows else ': none'))
         for r in rows:
@@ -268,28 +324,11 @@ def plan(spec0, updates):
                 a['_removed'] = True; renumber.add(sheet); entry(sheet, f"activity {a['_k']}", 'row', a.get('refer_to') or f"{a.get('activity')} | control {a.get('control_ref') or '-'}: {a.get('control')}", '(removed)', ch)
                 cr = a.get('control_ref')
                 if cr:
-                    for q in [q for x in spec['walkthroughs'] for q in x['questions'] if q.get('control_ref') == cr]: entry(sheet, f"question {q['_k']}", 'control_ref', cr, None, ch, q); q['control_ref'] = None
+                    for x in spec['walkthroughs']:
+                        for q in [q for q in x['questions'] if q.get('control_ref') == cr]: entry(awp.questions_ref(P) if x['_loc']['qr'] is None else x['ref'], f"question {q['_k']}", 'control_ref', cr, None, ch); q['control_ref'] = None
                     for r in [r for r in allrows() if cr in refs_of(r.get('control_no'))]:
                         left = [x for x in refs_of(r['control_no']) if x != cr]; entry(rcm, f"risk {r.get('_k', 'new')}", 'control_no', r['control_no'], '\n'.join(left) or '-', ch, r); r['control_no'] = '\n'.join(left) or '-'
                         if not left: warn.append(f'{where}: risk {r.get("_k")} is left without a control - state the design gap in its "de_finding"')
-            elif op == 'question':
-                q = find(w['questions'], ch.get('no'), 'question', where)
-                if not q: continue
-                if 'response' in fields and not blank(q.get('response')):
-                    mode = ch.get('mode') or 'fill'
-                    if mode == 'append': fields['response'] = str(q['response']).rstrip() + '\n\n' + str(fields['response']).strip()
-                    elif mode != 'replace': err.append(f'{where}: question {q["_k"]} already has the staff\'s response; add "mode": "append" to add to it or "mode": "replace" to rewrite it (the old text goes to the log)'); continue
-                setf(q, fields, ch, sheet, f"question {q['_k']}", where, Q_FIELDS)
-            elif op == 'add_question':
-                miss = [f for f in Q_REQUIRED if blank(fields.get(f))]
-                if miss: err.append(f'{where}: a new question needs {", ".join(miss)}'); continue
-                q = {'_new': True}; pos = len(w['questions'])
-                if 'after' in ch:
-                    anchor = find(w['questions'], ch['after'], 'question', where)
-                    if anchor:
-                        pos = w['questions'].index(anchor) + 1
-                        while pos < len(w['questions']) and w['questions'][pos].get('_new'): pos += 1
-                w['questions'].insert(pos, q); renumber.add(sheet); setf(q, fields, ch, sheet, 'new question', where, Q_FIELDS)
     # control numbers for new controls: the number asked for if it is free, otherwise the next free number on the sheet; existing numbers never move
     for w in spec['walkthroughs']:
         for s in w['sections']: s['activities'] = [a for a in s['activities'] if not a.get('_removed')]
@@ -306,7 +345,6 @@ def plan(spec0, updates):
             a['control_ref'] = want; used.add(want); log.append({'sheet': w['ref'], 'item': 'new activity' if a.get('_new') else f"activity {a['_k']}", 'field': 'control_ref', 'before': None, 'after': want, 'source': '', 'basis': 'control number assigned by the script', 'obj': a})
         if w['ref'] in renumber:
             for i, a in enumerate(acts, 1): a['no'] = i
-            for i, q in enumerate(w['questions'], 1): q['no'] = i
     for t, old_steps, ch in resteps:                       # the RCM row that quotes a test's full steps follows the test
         for r in allrows():
             if not blank(old_steps) and str(r.get('audit_strategy') or '').strip() == str(old_steps).strip() and (id(r), 'audit_strategy') not in seen:
@@ -344,7 +382,7 @@ def plan(spec0, updates):
         if o is None or o.get('_removed'): continue
         now = o.get('no', o.get('sn'))
         if now is not None and (o.get('_new') or (e['item'].split(' ')[0] in ('activity', 'question', 'risk') and key(now) != o.get('_k'))): e['item'] += f" (now no. {now})"
-    return spec, log, err, warn, touched, sources, open_points
+    return spec, log, err, warn, touched, sources, open_points, renumber
 
 def _clean(spec):
     s = copy.deepcopy(spec)
@@ -355,7 +393,125 @@ def _clean(spec):
         elif isinstance(o, list): [strip(v) for v in o]
     strip(s); return s
 
-# =============================================================================== apply: regenerate the changed sheets inside the workbook
+# =============================================================================== apply: edit the workbook in place
+def colwidth(ws, c1, c2=None):
+    tot = 0
+    for c in range(c1, (c2 or c1) + 1):
+        tot += next((d.width for d in ws.column_dimensions.values() if d.width and d.min and d.max and d.min <= c <= d.max), None) or ws.column_dimensions[get_column_letter(c)].width or 8.43
+    return tot
+def refit(ws, row, min_h=24.75):
+    """Row height for the text now in the row, as the generator sizes it."""
+    spans = {m.min_col: m.max_col for m in ws.merged_cells.ranges if m.min_row == row == m.max_row}; lines = 1
+    for c in range(1, ws.max_column + 1):
+        v = ws.cell(row, c).value
+        if isinstance(v, str) and not v.startswith('='): lines = max(lines, awp.est_lines(v, colwidth(ws, c, spans.get(c))))
+    ws.row_dimensions[row].height = max(min_h, min(409, lines * awp.LINE_PT + 3))
+
+def shift_rows(ws, r, n):
+    """Inserts a row before r (n=1) or deletes row r (n=-1), carrying merged cells and row heights with the rows that move."""
+    merges = [(m.min_row, m.max_row, m.min_col, m.max_col) for m in ws.merged_cells.ranges]
+    for m in list(ws.merged_cells.ranges): ws.unmerge_cells(str(m))
+    heights = {k: d.height for k, d in ws.row_dimensions.items() if d.height is not None}
+    for k in list(heights): ws.row_dimensions[k].height = None
+    if n > 0: ws.insert_rows(r)
+    else: ws.delete_rows(r)
+    mv = (lambda x: x + 1 if x >= r else x) if n > 0 else (lambda x: x - 1 if x > r else x)
+    for a, b, c, d in merges:
+        if n < 0 and a == b == r: continue
+        ws.merge_cells(start_row=mv(a), start_column=c, end_row=max(mv(a), mv(b)), end_column=d)
+    for k, hgt in heights.items():
+        if n < 0 and k == r: continue
+        ws.row_dimensions[mv(k)].height = hgt
+
+def copy_style(ws, src_row, dst_row, ncols, from_col=None):
+    for c in range(1, ncols + 1):
+        src = ws.cell(src_row, from_col or c)
+        if getattr(src, '_style', None) is not None: ws.cell(dst_row, c)._style = copy.copy(src._style)
+
+def act_cells(a, cols):
+    if 'refer_to' in a: return {2: a['refer_to']}
+    d = {2: a.get('activity')}
+    for f, c in cols.items():
+        if c: d[c] = a.get(f) if not blank(a.get(f)) else None
+    return d
+
+def apply_wt(ws, w0, w1, renum):
+    L = w0['_loc']; cols = L['cols']; nc = L['ncols']; written = set()
+    old_acts = {a['_pos']: a for s in w0['sections'] for a in s['activities']}; old_secs = {s['_spos']: s for s in w0['sections']}
+    live = [x for s in w1['sections'] for x in [s] + s['activities'] if x.get('_row')]
+    def shift(r, n):
+        shift_rows(ws, r, n)
+        for x in live:
+            if x['_row'] >= r + (0 if n > 0 else 1): x['_row'] += n
+    keep_a = {a['_pos'] for s in w1['sections'] for a in s['activities'] if '_pos' in a}; keep_s = {s['_spos'] for s in w1['sections'] if '_spos' in s}
+    gone = [a['_row'] for k, a in old_acts.items() if k not in keep_a] + [s['_row'] for k, s in old_secs.items() if k not in keep_s and s.get('_row')]
+    for r in sorted(gone, reverse=True): shift(r, -1)
+    cur = L['hr']
+    for s in w1['sections']:
+        if s.get('_row'):
+            cur = s['_row']
+            if (old_secs[s['_spos']].get('title') or '') != (s.get('title') or ''): ws.cell(cur, 1).value = s.get('title')
+        elif '_spos' not in s:                                         # a new sub-section: its title row goes after everything written so far
+            tmpl = next((x for x in live if 'activities' in x), None); shift(cur + 1, 1); cur += 1
+            if tmpl: copy_style(ws, tmpl['_row'], cur, nc, from_col=1)
+            ws.cell(cur, 1).value = s.get('title'); ws.merge_cells(start_row=cur, start_column=1, end_row=cur, end_column=nc); ws.row_dimensions[cur].height = 13.5
+            s['_row'] = cur; live.append(s)
+        for a in s['activities']:
+            if a.get('_row'):
+                cur = a['_row']; old, new = act_cells(old_acts[a['_pos']], cols), act_cells(a, cols)
+                for c in sorted(set(old) | set(new)):
+                    if old.get(c) != new.get(c): ws.cell(cur, c).value = new.get(c); written.add(cur)
+            else:
+                tmpl = next((x for x in reversed(live) if 'activities' not in x and 'refer_to' not in x and x['_row'] <= cur), None) or next((x for x in live if 'activities' not in x), None)
+                shift(cur + 1, 1); cur += 1
+                if tmpl: copy_style(ws, tmpl['_row'], cur, max(nc, ws.max_column))
+                for c, v in act_cells(a, cols).items(): ws.cell(cur, c).value = v
+                a['_row'] = cur; live.append(a); written.add(cur)
+    if renum:
+        for i, a in enumerate([a for s in w1['sections'] for a in s['activities']], 1): ws.cell(a['_row'], 1).value = i
+    for r in written: refit(ws, r)
+    if (w0.get('background') or '') != (w1.get('background') or '') and L['br']:
+        ws.cell(L['br'], 1).value = 'Background:\n\n' + str(w1['background']).strip(); refit(ws, L['br'], 40)
+
+def result_formula(refs, concl):
+    cells = [f"'{x}'!B{concl[x]}" for x in refs if x in concl]
+    return None if not cells else (f'=IF({cells[0]}="","",{cells[0]})' if len(cells) == 1 else '=' + '&CHAR(10)&'.join(cells))
+
+def apply_rcm(ws, spec0, spec, renum, concl, rebuilt):
+    L = spec0['rcm']['_loc']; cols = L['cols']; old = {r['_pos']: r for s in spec0['rcm']['sections'] for r in s['rows']}
+    live = [r for s in spec['rcm']['sections'] for r in s['rows'] if r.get('_row')]; cG = cols['testing_result']
+    for s in spec['rcm']['sections']:
+        prev = None
+        for r in s['rows']:
+            if r.get('_row'):
+                o = old[r['_pos']]
+                for f in R_FIELDS:
+                    if cols.get(f) and (o.get(f) or '') != (r.get(f) or ''): ws.cell(r['_row'], cols[f]).value = r.get(f)
+                g = ws.cell(r['_row'], cG).value if cG else None
+                if cG and (blank(g) or (isinstance(g, str) and g.startswith('='))) and ((o.get('wp_ref') or '') != (r.get('wp_ref') or '') or set(refs_of(r.get('wp_ref'))) & set(rebuilt)): ws.cell(r['_row'], cG).value = result_formula(refs_of(r.get('wp_ref')), concl)
+            else:
+                if prev is None: raise SystemExit(f'{ws.title}: a new risk needs an existing risk before it in its section; give "after" with that risk\'s number')
+                at = prev['_row'] + 1; shift_rows(ws, at, 1)
+                for x in live:
+                    if x['_row'] >= at: x['_row'] += 1
+                copy_style(ws, prev['_row'], at, ws.max_column); r['_row'] = at; live.append(r)
+                for f in R_FIELDS:
+                    if cols.get(f): ws.cell(at, cols[f]).value = r.get(f)
+                if cG: ws.cell(at, cG).value = result_formula(refs_of(r.get('wp_ref')), concl)
+            refit(ws, r['_row']); prev = r
+    if renum:
+        for i, r in enumerate([r for s in spec['rcm']['sections'] for r in s['rows']], 1): ws.cell(r['_row'], 1).value = i
+
+def clear_question_refs(wbf, spec, gone):
+    """A removed control is taken out of the Control Reference cell of the questions that cited it; nothing else on a question row is touched."""
+    qs = awp.questions_ref(spec['prefix'])
+    for ws in ([wbf[qs]] if qs in wbf.sheetnames else [wbf[w['ref']] for w in spec['walkthroughs']]):
+        hr, _ = awp._find(ws, 'Question', exact=True)
+        if not hr: continue
+        cc = next((c for k, c in awp._hdr_map(ws, hr).items() if k.startswith('control reference')), None)
+        for r in range(hr + 1, ws.max_row + 1):
+            if cc and str(ws.cell(r, cc).value or '').strip() in gone: ws.cell(r, cc).value = None
+
 def conclusion_rows(wbf, spec, rebuilt):
     out = {}
     for t in spec['tests']:
@@ -365,16 +521,8 @@ def conclusion_rows(wbf, spec, rebuilt):
             if r: out[t['ref']] = r
     return out
 
-def render(wb, spec, name, wbf_for_rows, rebuilt=()):
-    """Builds sheet `name` of `spec` into workbook `wb` (appended) with the engine's own builders."""
-    P = spec['prefix']; s = _clean(spec)
-    if name == f'{P}100': awp.build_rcm(wb, s, P, conclusion_rows(wbf_for_rows, s, rebuilt))
-    elif name in [w['ref'] for w in s['walkthroughs']]: awp.build_walkthrough(wb, s, P, next(w for w in s['walkthroughs'] if w['ref'] == name))
-    else: awp.build_test(wb, s, P, next(t for t in s['tests'] if t['ref'] == name))
-    return wb[name]
-
-def not_carried(path, wbf, spec0, touched):
-    """What a changed sheet holds that the house layout cannot carry: free text outside the tables, pictures, charts, comments, embedded files."""
+def not_carried(path, wbf, spec0, tests):
+    """What saving from a script cannot keep (anywhere in the workbook), and what a test sheet that is re-laid for new steps holds outside its tables."""
     hard = []; soft = []
     with zipfile.ZipFile(path) as z: names = z.namelist()
     if any(n.startswith('xl/embeddings/') for n in names): hard.append('the workbook has embedded files (documents inserted as objects); saving it from a script drops them from every sheet')
@@ -383,15 +531,14 @@ def not_carried(path, wbf, spec0, touched):
         try: import PIL  # noqa: F401
         except ImportError: hard.append('the workbook has pictures and this environment cannot keep them (the Pillow package is missing); they would be dropped from every sheet')
     tmp = Workbook()
-    for name in sorted(touched):
-        ws = wbf[name]
+    for name in sorted(tests):
+        ws = wbf[name]; s = _clean(spec0); awp.build_test(tmp, s, s['prefix'], next(t for t in s['tests'] if t['ref'] == name))
+        have = {norm(c.value) for row in tmp[name].iter_rows() for c in row if not blank(c.value)}
         if getattr(ws, '_images', None): soft.append(f'{name}: {len(ws._images)} picture(s) on the sheet')
-        if getattr(ws, '_charts', None): soft.append(f'{name}: {len(ws._charts)} chart(s) on the sheet')
-        new = render(tmp, spec0, name, wbf); have = {norm(c.value) for row in new.iter_rows() for c in row if not blank(c.value)}
         for row in ws.iter_rows():
             for c in row:
                 if c.comment: soft.append(f'{name}!{c.coordinate}: cell comment "{str(c.comment.text)[:120]}"')
-                if not blank(c.value) and norm(c.value) not in have and not (isinstance(c.value, str) and c.value.startswith('=')): soft.append(f'{name}!{c.coordinate}: text outside the house layout "{str(c.value)[:120]}"')
+                if not blank(c.value) and norm(c.value) not in have and not (isinstance(c.value, str) and c.value.startswith('=')): soft.append(f'{name}!{c.coordinate}: text outside the test layout "{str(c.value)[:120]}"')
     return hard, soft
 
 def write_log(path, src_name, out_name, log, sources, open_points, left, warn):
@@ -424,34 +571,41 @@ def load_updates(paths):
 
 def run(path, out, files, force=False, write=True):
     if write and os.path.abspath(out) == os.path.abspath(path): raise SystemExit('OUT must be a new file: the workbook you were given is never overwritten')
-    wbf, spec0, rep = read(path); P = spec0['prefix']
-    spec, log, err, warn, touched, sources, open_points = plan(spec0, load_updates(files))
+    wbf, spec0, rep = read(path); P = spec0['prefix']; rcm = f'{P}100'
+    spec, log, err, warn, touched, sources, open_points, renumber = plan(spec0, load_updates(files))
     for w in warn: print('warn:', w)
     for e in err: print('error:', e)
     if err: print(f'UPDATE NOT APPLIED - {len(err)} error(s); correct the update file(s) and run again'); return False
     if not log: print('UPDATE NOT APPLIED - the update files change nothing'); return False
-    hard, soft = not_carried(path, wbf, spec0, touched)
+    tests = {t['ref'] for t in spec['tests']}; rebuilt = touched & tests
+    hard, soft = not_carried(path, wbf, spec0, rebuilt)
     for x in hard + soft: print('would be lost:', x)
     for e in log:
         if e['field'] == 'control_ref' and e['before'] is None and not e['source']: print(f"new control number: {e['after']} ({e['sheet']} {e['item']})")
     by_sheet = Counter(e['sheet'] for e in log)
     summary = f"{len(log)} cells changed: " + ', '.join(f'{s} {n}' for s, n in sorted(by_sheet.items()))
     if not write:
-        print('CHECK PASSED -', summary + (f' - but {len(hard + soft)} item(s) on the changed sheets cannot be carried over (listed above): move them into the table cells in Excel first, or apply with --force to drop them' if hard + soft else '')); return True
+        print('CHECK PASSED -', summary + (f' - but {len(hard + soft)} item(s) cannot be kept when the workbook is saved (listed above): tell the user before applying' if hard + soft else '')); return True
     if (hard or soft) and not force:
-        print(f'UPDATE NOT APPLIED - {len(hard + soft)} item(s) cannot be carried over (listed above). Ask the user: move them into the table cells in Excel and run again, or run with --force to drop them. Nothing was written.'); return False
-    tests = {t['ref'] for t in spec['tests']}; rebuilt = touched & tests; order = wbf.sheetnames[:]
-    for name in sorted(touched, key=lambda n: (n == f'{P}100', n)):          # tests and walkthroughs first, the RCM last (it links to the tests' Conclusion cells)
-        del wbf[name]; ws = render(wbf, spec, name, wbf, rebuilt); wbf.move_sheet(ws, offset=order.index(name) - wbf.sheetnames.index(name))
-    wbf.active = wbf.sheetnames.index(P) if P in wbf.sheetnames else 0
-    for ws in wbf: ws.sheet_view.tabSelected = (ws.title == wbf.active.title)
+        print(f'UPDATE NOT APPLIED - {len(hard + soft)} item(s) cannot be kept (listed above). Ask the user: remove or relocate them in Excel and run again, or run with --force to drop them. Nothing was written.'); return False
+    order = wbf.sheetnames[:]; s1 = _clean(spec)
+    for name in sorted(rebuilt):                                           # a test whose steps changed (and holds no work yet) is laid out again
+        del wbf[name]; awp.build_test(wbf, s1, P, next(t for t in s1['tests'] if t['ref'] == name)); wbf.move_sheet(wbf[name], offset=order.index(name) - wbf.sheetnames.index(name))
+    if rebuilt:
+        wbf.active = wbf.sheetnames.index(P) if P in wbf.sheetnames else 0
+        for ws in wbf: ws.sheet_view.tabSelected = (ws.title == wbf.active.title)
+    for w0, w1 in zip(spec0['walkthroughs'], spec['walkthroughs']):
+        if w1['ref'] in touched: apply_wt(wbf[w1['ref']], w0, w1, w1['ref'] in renumber)
+    if rcm in touched: apply_rcm(wbf[rcm], spec0, spec, rcm in renumber, conclusion_rows(wbf, spec, rebuilt), rebuilt)
+    gone = set(controls(spec0)) - set(controls(spec))
+    if gone: clear_question_refs(wbf, spec, gone)
     if '_build' in wbf.sheetnames:
         b = wbf['_build']; r = b.max_row + 1; b[f'A{r}'] = 'updated'; b[f'B{r}'] = f"awp-update v{VERSION} · {dt.date.today().isoformat()} · {summary} · sources: {'; '.join(sources.values())}"[:2000]
         b[f'A{r}'].font = awp.F(); b[f'B{r}'].font = awp.F()
-    wbf.save(out); left = remaining(spec)
+    wbf.save(out); left = remaining(read(out)[1])
     logp = os.path.splitext(out)[0] + ' - update log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft])
     ok = awp.verify(out)
-    print(f"UPDATE APPLIED - {summary} - sheets rewritten: {', '.join(sorted(touched))} - every other sheet is unchanged")
+    print(f"UPDATE APPLIED - {summary} - only these cells were written; everything else in the workbook is as the team left it")
     print(f'workbook: {out}\nupdate log: {logp}')
     for s, what, items in left: print(f'still open - {s}: {what}: {items}')
     for f, p in open_points: print(f'open point ({f}): {p}')
@@ -460,39 +614,40 @@ def run(path, out, files, force=False, write=True):
 
 # =============================================================================== selftest
 def selftest():
-    import tempfile, shutil
+    import tempfile, shutil, io, contextlib
+    from openpyxl.comments import Comment
     d = tempfile.mkdtemp(); ok = False; msg = ''
     try:
-        act = lambda n, ref: {'no': n, 'activity': f'Activity {n} is performed by the Manager in the system.', 'performed_by': 'Manager', 'frequency': 'Monthly', 'control_ref': ref, 'control': f'Control {n} is evidenced by a signed form.', 'owner': 'Head of Department', 'classification': 'Preventive', 'type': 'Manual', 'de_finding': '', 'document': 'Signed form'}
+        act = lambda n, ref: {'no': n, 'activity': f'Expected: activity {n} is performed by the Manager in the system.', 'performed_by': 'Manager', 'frequency': 'Monthly', 'control_ref': ref, 'control': f'Control {n} is evidenced by a signed form.', 'owner': 'Head of Department', 'classification': 'Preventive', 'type': 'Manual', 'de_finding': '', 'document': 'Signed form'}
         q = lambda n, ref: {'no': n, 'question': f'Could you walk us through step {n}?', 'why': 'To understand the control.', 'documents': 'The form', 'interviewee': 'Manager', 'response': '', 'control_ref': ref}
         steps = 'Test 1: Approvals\nCheck that:\n1. The form was approved.\n2. The form was dated.\n3. The form was filed.'
         spec = {'prefix': 'A', 'client': 'Selftest Co', 'process': 'Selftest process', 'period': 'FY',
                 'scope': [{'no': 1, 'key_process': 'Approvals', 'areas': ['Check that forms are approved.'], 'covered': 'Yes'}],
-                'rcm': {'sections': [{'title': '1. Approvals', 'rows': [{'sn': 1, 'sub_process': 'Approvals', 'risk': 'Forms may not be approved. This may result in unauthorised transactions.', 'control_no': 'A201-1\nA201-2', 'de_finding': 'To be concluded after the walkthrough.', 'audit_strategy': steps, 'wp_ref': 'A301'}]}]},
-                'walkthroughs': [{'ref': 'A201', 'title': 'Approvals', 'index_text': 'Approvals', 'background': 'The department approves forms.', 'sections': [{'title': '1.1 Approvals', 'activities': [act(1, 'A201-1'), act(2, 'A201-2')]}], 'questions': [q(i, 'A201-1') for i in range(1, 6)]}],
+                'rcm': {'sections': [{'title': '1. Approvals', 'rows': [{'sn': 1, 'sub_process': 'Approvals', 'risk': 'Forms may not be approved. This may result in unauthorised transactions.', 'control_no': 'A201-1\nA201-2\nA201-3', 'de_finding': 'To be concluded after the walkthrough.', 'audit_strategy': steps, 'wp_ref': 'A301'}]}]},
+                'walkthroughs': [{'ref': 'A201', 'title': 'Approvals', 'index_text': 'Approvals', 'background': 'The department approves forms.', 'sections': [{'title': '1.1 Approvals', 'activities': [act(1, 'A201-1'), act(2, 'A201-2'), act(3, 'A201-3')]}], 'questions': [q(i, 'A201-%d' % min(i, 3)) for i in range(1, 6)]}],
                 'tests': [{'ref': 'A301', 'no': 1, 'title': 'Approvals', 'objective': 'To check that forms are approved.', 'basis': 'Haphazard.', 'population': 'Forms in the period', 'sample_size': 'Ten', 'source': 'Form listing', 'steps': steps, 'detail_title': 'Form details', 'detail_columns': ['Form', 'Date'], 'n_rows': 3}],
                 'da': {'analytics': [{'sn': 1, 'analytic': 'Forms without approval date.', 'source': 'Form listing', 'identifies': 'Unapproved forms.', 'feeds': 'A301', 'result': '', 'status': 'Planned'}]}}
         src = os.path.join(d, 'awp.xlsx'); awp.build_awp(spec, src)
-        wb = load_workbook(src); ws = wb['A201']; r, _ = awp._find(ws, 'Question', col='B', exact=True); ws[f'J{r+1}'] = 'Staff note: the Manager approves in the system.'; wb.save(src)
+        wb = load_workbook(src); t = wb[awp.questions_ref('A')]; t['G10'] = 'Staff note: the Manager approves in the system.'; t['I11'] = 'Side note beside the questions.'
+        ws = wb['A201']; ws['M12'] = 'Side note beside the activities.'; ws['F12'].comment = Comment('Reviewer comment', 'R'); wb.save(src)
         upd = {'sources': {'M1': 'Walkthrough minutes (selftest)', 'N': 'Staff notes in the workbook'}, 'open_points': ['Obtain the approval matrix.'], 'changes': [
             {'sheet': 'A201', 'op': 'background', 'mode': 'append', 'text': 'The walkthrough confirmed that approvals moved into the system in the period.', 'source': ['M1'], 'basis': 'Manager described the change.'},
-            {'sheet': 'A201', 'op': 'activity', 'no': 1, 'set': {'performed_by': 'Senior Manager', 'de_finding': 'No design gap noted.'}, 'source': ['M1'], 'basis': 'Manager: the Senior Manager approves.'},
-            {'sheet': 'A201', 'op': 'add_activity', 'after': 1, 'set': {'activity': 'The Finance Manager reviews the approved forms every month.', 'performed_by': 'Finance Manager', 'frequency': 'Monthly', 'control': 'The monthly review is signed off on the form listing.', 'owner': 'Finance Manager', 'classification': 'Detective', 'type': 'Manual', 'de_finding': 'No design gap noted.', 'document': 'Signed form listing'}, 'source': ['M1'], 'basis': 'Finance Manager described the review.'},
-            {'sheet': 'A201', 'op': 'question', 'no': 1, 'mode': 'append', 'set': {'response': 'Minutes: approval is by the Senior Manager.'}, 'source': ['M1'], 'basis': 'Minutes.'},
-            {'sheet': 'A201', 'op': 'question', 'no': 2, 'set': {'response': 'Forms are filed monthly.'}, 'source': ['M1'], 'basis': 'Minutes.'},
-            {'sheet': 'A201', 'op': 'add_question', 'set': {'question': 'Who reviews the listing?', 'why': 'A new detective control.', 'documents': 'The signed listing', 'interviewee': 'Finance Manager', 'response': 'The Finance Manager.', 'control_ref': 'A201-3'}, 'source': ['M1'], 'basis': 'Minutes.'},
-            {'sheet': 'A100', 'op': 'risk', 'sn': 1, 'set': {'control_no': 'A201-1\nA201-2\nA201-3', 'de_finding': 'No design gap noted. The monthly review by the Finance Manager (A201-3) was identified in the walkthrough.'}, 'source': ['M1', 'N'], 'basis': 'Minutes and staff notes.'}]}
-        up = os.path.join(d, 'u.json'); awp.save_json(upd, up); out = os.path.join(d, 'out.xlsx')
-        import io, contextlib
-        buf = io.StringIO()
+            {'sheet': 'A201', 'op': 'activity', 'no': 1, 'set': {'activity': 'The Senior Manager approves each form in the system before it is processed.', 'performed_by': 'Senior Manager', 'de_finding': 'No design gap noted.'}, 'source': ['M1', 'N'], 'basis': 'Manager: the Senior Manager approves.'},
+            {'sheet': 'A201', 'op': 'add_activity', 'after': 1, 'set': {'activity': 'The Finance Manager reviews the approved forms every month.', 'performed_by': 'Finance Manager', 'frequency': 'Monthly', 'control': 'The Finance Manager signs the form listing after the monthly review.', 'owner': 'Finance Manager', 'classification': 'Detective', 'type': 'Manual', 'de_finding': 'No design gap noted.', 'document': 'Signed form listing'}, 'source': ['M1'], 'basis': 'Finance Manager described the review.'},
+            {'sheet': 'A201', 'op': 'remove_activity', 'no': 3, 'source': ['M1'], 'basis': 'Manager: this step does not exist.'},
+            {'sheet': 'A100', 'op': 'risk', 'sn': 1, 'set': {'control_no': 'A201-1\nA201-2\nA201-4', 'de_finding': 'No design gap noted. The monthly review by the Finance Manager (A201-4) was identified in the walkthrough.'}, 'source': ['M1', 'N'], 'basis': 'Minutes and staff notes.'}]}
+        up = os.path.join(d, 'u.json'); awp.save_json(upd, up); out = os.path.join(d, 'out.xlsx'); buf = io.StringIO()
         with contextlib.redirect_stdout(buf): good = run(src, out, [up])
-        a, b = load_workbook(src), load_workbook(out); s2 = awp.export_spec(out); w = s2['walkthroughs'][0]
+        a, b = load_workbook(src), load_workbook(out); s2 = awp.export_spec(out); w = s2['walkthroughs'][0]; qa, qb = a[awp.questions_ref('A')], b[awp.questions_ref('A')]
         same = all(a[n].cell(r, c).value == b[n].cell(r, c).value for n in ('Scope', 'A', 'A200', 'A300', 'A301', 'A400') for r in range(1, a[n].max_row + 1) for c in range(1, a[n].max_column + 1))
-        checks = [good, same, a.sheetnames == b.sheetnames, w['questions'][0]['response'].startswith('Staff note: the Manager approves in the system.') and 'Minutes:' in w['questions'][0]['response'],
-                  [x.get('control_ref') for x in w['sections'][0]['activities']] == ['A201-1', 'A201-3', 'A201-2'], [x['no'] for x in w['sections'][0]['activities']] == [1, 2, 3], len(w['questions']) == 6,
-                  s2['rcm']['sections'][0]['rows'][0]['de_finding'].startswith('No design gap'), str(b['A100']['G9'].value).startswith('='), os.path.exists(os.path.splitext(out)[0] + ' - update log.xlsx')]
-        bad = dict(upd, changes=[{'sheet': 'A201', 'op': 'question', 'no': 1, 'set': {'response': 'overwrite'}, 'source': ['M1'], 'basis': 'x'}]); awp.save_json(bad, up)
-        with contextlib.redirect_stdout(buf): checks.append(run(src, os.path.join(d, 'o2.xlsx'), [up]) is False)       # a staff response is never overwritten silently
+        qsame = [(r, c) for r in range(1, qa.max_row + 1) for c in range(1, qa.max_column + 1) if qa.cell(r, c).value != qb.cell(r, c).value]
+        checks = [good, same, a.sheetnames == b.sheetnames, qsame == [(12, 8), (13, 8), (14, 8)],                                        # questions tab untouched but for the removed control's reference
+                  b['A201']['M13'].value == 'Side note beside the activities.' and b['A201']['F13'].comment is not None,   # notes and comments move with their row
+                  [x.get('control_ref') for x in w['sections'][0]['activities']] == ['A201-1', 'A201-4', 'A201-2'], [x['no'] for x in w['sections'][0]['activities']] == [1, 2, 3],
+                  not planned(w['sections'][0]['activities'][0]['activity']), s2['rcm']['sections'][0]['rows'][0]['de_finding'].startswith('No design gap'), str(b['A100']['G9'].value).startswith('='),
+                  os.path.exists(os.path.splitext(out)[0] + ' - update log.xlsx')]
+        bad = dict(upd, changes=[{'sheet': 'A201', 'op': 'activity', 'no': 2, 'set': {'control': 'Expected control: the form is signed.'}, 'source': ['M1'], 'basis': 'x'}]); awp.save_json(bad, up)
+        with contextlib.redirect_stdout(buf): checks.append(run(src, os.path.join(d, 'o2.xlsx'), [up]) is False)       # planning wording is refused
         ok = all(checks); msg = '' if ok else f' - failed checks {[i for i, c in enumerate(checks) if not c]}\n' + buf.getvalue()
     finally: shutil.rmtree(d, ignore_errors=True)
     print('SELFTEST', 'PASSED' if ok else 'FAILED', f'- awp-update v{VERSION} · engine awp-generate v{awp.VERSION}' + msg); return ok

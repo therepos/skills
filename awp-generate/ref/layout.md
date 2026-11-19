@@ -24,8 +24,15 @@ Header row 7: `S/N | Sub-process | Risk | Control No. | Finding for Design Effec
 - Row 8 merged A:K: `Background:` + blank line + narrative (process, systems, people; changes in the period; prior-year context).
 - Row 9 header: `No. | Activity | Performed By | Frequency | Control Reference No. | Existing controls / mitigating measures | Control Owner | Control Classification | Control Type | Finding for design effectiveness | Walkthrough Document`.
 - Sub-section rows merged A:K, bold, no fill (`1.1 Policies and procedures and Delegation of Authority`). Activity rows numbered continuously across sub-sections; control refs `<sheet>-<n>` bold red; a row may simply cross-refer (`Please refer to <A302> …`).
-- Blank row, then merged A:K band (808080, white bold) `Walkthrough questions for the team lead (…)`, header `No. | Question (B:D) | Why we are asking, including the prior-year context (E:F) | Documents to request during the session (G:H) | Proposed interviewee | Response noted during the walkthrough | Control Reference No.`; question rows keep the same merges.
 - Freeze panes A10. Widths 12.6 / 42.6 / 19 / 19.1 / 16 / 50.4 / 16.1 / 16.6 / 12.9 / 59.1 / 16.1.
+
+## A200Q — Walkthrough questions (one tab for the whole process)
+- Row 7 merged A:H: `Walkthrough questions for the team lead (…)` — fill 808080, white bold.
+- Row 8 header: `No. | WP Ref | Question | Why we are asking, including the prior-year context | Documents to request during the session | Proposed interviewee | Response noted during the walkthrough | Control Reference No.`
+- One group per walkthrough sheet, in sheet order: a group row merged A:H (fill DCE6F1, bold) `A202  <sub-process title>`, then its questions. Questions are numbered continuously over the whole tab; `WP Ref` and `Control Reference No.` bold red.
+- The team types its notes in `Response noted during the walkthrough`. The walkthrough sheets carry no questions, so updating them after the walkthrough (awp-update) never touches the notes.
+- Listed first on the `A200` index. Freeze panes D9. Widths 12.6 / 9 / 60 / 50 / 30 / 16 / 70 / 16.1.
+- Workbooks built before v2.2 carry the questions at the foot of each walkthrough sheet instead; `export`, `verify` and awp-update read both.
 
 ## A301… — Test sheet
 - Row 7: `Test n` in A and the title in B on an 808080 band with white bold text across the table width.
