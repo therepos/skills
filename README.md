@@ -29,6 +29,7 @@ Users never read this repository; they get a self-contained zip. `python release
 | `awp-lib/` | shared content libraries (`core.json`, `pack-<process>.json`); not a skill, no SKILL.md; bundled into every `awp-*` zip as `lib/` |
 | `awp-generate/` | build the AWP workbook from engagement material and the libraries (template, build, verify) |
 | `awp-update/` | after the walkthrough: update the RCM (100) and walkthrough sheets (200) of an existing AWP from the minutes, the staff's notes and supporting documents; rewrites only the changed sheets and logs every change |
+| `awp-agent/` | not a skill: the Copilot agent's settings (instructions text, which zips to upload, set-up and smoke test) so the agent can be deployed in any tenant |
 | `awp-learn/` | end of engagement: harvest the finished AWP back into the libraries with client-data guards |
 
 Further `awp-*` skills (a review skill, say) read the same `awp-lib/`.
