@@ -1,5 +1,5 @@
 """
-update.py  v2.0 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
+update.py  v2.1 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
 
 Run from the folder that contains SKILL.md:
 
@@ -9,6 +9,7 @@ Run from the folder that contains SKILL.md:
     python scripts/update.py show   AWP.xlsx rcm [full]               the risk and control matrix as text (full: with every audit step)
     python scripts/update.py check  AWP.xlsx UPDATE.json [...]        validates update files; writes nothing
     python scripts/update.py apply  AWP.xlsx OUT.xlsx UPDATE.json [...]   applies them: OUT.xlsx + "OUT - update log.xlsx", then verifies OUT
+    python scripts/update.py questions AWP.xlsx OUT.xlsx              only moves the walkthrough questions of an older workbook to one tab (apply does this too)
 
 The model writes the update files (what changes, from which source, on what basis); this script edits the workbook in place:
 it writes only the cells that change, inserts a row for a new activity or risk and removes a row that no longer applies.
@@ -20,7 +21,7 @@ Only dependency: openpyxl. Shares its engine with awp-generate: scripts/awp.py n
 import copy, json, os, re, sys, zipfile, datetime as dt, importlib.util
 from collections import Counter
 
-VERSION = '2.0'
+VERSION = '2.1'
 HERE = os.path.dirname(os.path.abspath(__file__)); SKILL = os.path.dirname(HERE)
 try: sys.stdout.reconfigure(errors='replace')
 except Exception: pass
@@ -211,7 +212,7 @@ def test_started(t): return bool(t.get('rows')) or any(not blank(t.get(k)) and s
 
 def plan(spec0, updates):
     """Applies the update files to a copy of the exported spec. Returns (spec, log, errors, warnings, touched sheets, sources, open points)."""
-    spec = copy.deepcopy(spec0); P = spec['prefix']; rcm = f'{P}100'; log = []; err = []; warn = []; touched = set(); sources = {}; open_points = []; seen = set()
+    spec = copy.deepcopy(spec0); P = spec['prefix']; rcm = f'{P}100'; log = []; err = []; warn = []; touched = set(); sources = {}; open_points = []; seen = set(); info = {'process': {}, 'counts': {}}
     wts = {w['ref']: w for w in spec['walkthroughs']}; tests = {t['ref']: t for t in spec['tests']}; renumber = set(); resteps = []
     allrows = lambda: [r for s in spec['rcm']['sections'] for r in s['rows']]
     def find(items, k, what, where):
@@ -237,6 +238,9 @@ def plan(spec0, updates):
             if k in sources and sources[k] != d: err.append(f'{fname}: source id {k} is described differently in another update file - use one id per document')
             sources[k] = d
         open_points += [(fname, str(p)) for p in (upd.get('open_points') or [])]
+        for sh, steps in (upd.get('process') or {}).items() if isinstance(upd.get('process'), dict) else []:
+            if not isinstance(steps, list) or not steps: err.append(f'{fname}: "process" for {sh} must be a list of the actual process steps, in order')
+            else: info['process'][sh] = [str(x) for x in steps]
         for n, ch in enumerate(upd['changes'], 1):
             where = f'{fname} change {n}'
             if not isinstance(ch, dict): err.append(f'{where}: not an object'); continue
@@ -374,6 +378,17 @@ def plan(spec0, updates):
     before = {m for s, m in awp.validate(_clean(spec0))}
     warn += [m for s, m in awp.validate(_clean(spec)) if m not in before]
     if any(e['sheet'] in tests for e in log) or rcm in renumber: touched.add(rcm)
+    # the activity rows follow the actual process: one row per step the walkthrough established, however many the planning sheet had
+    for w0, w in zip(spec0['walkthroughs'], spec['walkthroughs']):
+        if w['ref'] not in touched: continue
+        real = lambda x: [a for s in x['sections'] for a in s['activities'] if 'refer_to' not in a]
+        before, after = real(w0), real(w); kept = {a.get('_pos') for a in after}
+        info['counts'][w['ref']] = (len(before), len(after), sum(1 for a in after if a.get('_new')), sum(1 for a in before if a['_pos'] not in kept))
+        steps = info['process'].get(w['ref'])
+        if not steps: err.append(f"{w['ref']}: \"process\" is missing - before changing rows, list the actual process of this sheet step by step as the sources describe it (\"process\": {{\"{w['ref']}\": [\"step 1 ...\", \"step 2 ...\"]}}), then make the activity rows follow it: rewrite a row, add a row for a step the sheet lacks, remove a row for a step that does not exist")
+        elif len(steps) != len(after): warn.append(f"{w['ref']}: you listed {len(steps)} actual process steps but the sheet will have {len(after)} activity rows ({len(before)} before). One row per step: add rows for the missing steps (add_activity), remove rows for steps that do not exist (remove_activity), or correct the list")
+    for sh in info['process']:
+        if sh not in wts: err.append(f'"process" names {sh}, which is not a walkthrough sheet ({", ".join(wts)})')
     for w in spec['walkthroughs']:                         # a design conclusion on a row that still describes the assumed process
         for a in [a for s in w['sections'] for a in s['activities'] if planned(a.get('activity'), a.get('control'))]:
             if any(e.get('obj') is a and e['field'] == 'de_finding' for e in log): warn.append(f"{w['ref']} activity {a.get('_k', 'new')}: a design-effectiveness finding is given but the activity or control still reads \"Expected ...\" - rewrite both as the actual process in the same change")
@@ -382,7 +397,7 @@ def plan(spec0, updates):
         if o is None or o.get('_removed'): continue
         now = o.get('no', o.get('sn'))
         if now is not None and (o.get('_new') or (e['item'].split(' ')[0] in ('activity', 'question', 'risk') and key(now) != o.get('_k'))): e['item'] += f" (now no. {now})"
-    return spec, log, err, warn, touched, sources, open_points, renumber
+    return spec, log, err, warn, touched, sources, open_points, renumber, info
 
 def _clean(spec):
     s = copy.deepcopy(spec)
@@ -512,6 +527,70 @@ def clear_question_refs(wbf, spec, gone):
         for r in range(hr + 1, ws.max_row + 1):
             if cc and str(ws.cell(r, cc).value or '').strip() in gone: ws.cell(r, cc).value = None
 
+QCOLS = [('no.', 'No.', 12.6), ('wp ref', 'WP Ref', 9), ('question', 'Question', 60), ('why', 'Why we are asking, including the prior-year context', 50), ('documents', 'Documents to request during the session', 30),
+         ('proposed interviewee', 'Proposed interviewee', 16), ('response', 'Response noted during the walkthrough', 70), ('control reference', 'Control Reference No.', 16.1)]
+def migrate_questions(wbf, spec):
+    """A workbook built before awp-generate 2.2 carries the walkthrough questions at the foot of each 200 sheet. They are moved, with everything the team
+    typed in and around them, to one tab for the whole process (the 2.2 layout); the 200 sheets keep the process only. Returns the number of rows moved."""
+    P = spec['prefix']; name = awp.questions_ref(P); blocks = []
+    if name in wbf.sheetnames: return 0
+    for w in spec['walkthroughs']:
+        ws = wbf[w['ref']]; qr, _ = awp._find(ws, 'Question', col='B', exact=True)
+        if qr: blocks.append((w, ws, qr))
+    if not blocks: return 0
+    extras = []; maps = []
+    for w, ws, qr in blocks:                                           # columns by header text: the house columns, then whatever the team added
+        spans = {m.min_col: m.max_col for m in ws.merged_cells.ranges if m.min_row <= qr <= m.max_row}; covered = {c for a, b in spans.items() for c in range(a + 1, b + 1)}; m = {}
+        for c in range(1, ws.max_column + 1):
+            h = ws.cell(qr, c).value; used = any(not blank(ws.cell(r, c).value) or ws.cell(r, c).comment for r in range(qr + 1, ws.max_row + 1))
+            if c in covered or (blank(h) and not used): continue
+            std = next((i for i, (pref, _, _) in enumerate(QCOLS) if not blank(h) and str(h).strip().lower().startswith(pref)), None)
+            if std is None:
+                label = str(h).strip() if not blank(h) else f'Notes (column {get_column_letter(c)} of the walkthrough sheet)'
+                if label not in [e[0] for e in extras]: extras.append((label, colwidth(ws, c)))
+                m[c] = len(QCOLS) + [e[0] for e in extras].index(label)
+            else: m[c] = std
+        maps.append(m)
+    t = wbf.create_sheet(name, wbf.sheetnames.index(blocks[0][0]['ref'])); heads = [(lab, wd) for _, lab, wd in QCOLS] + extras; n = len(heads); last = get_column_letter(n); F = awp.F
+    awp.ref_box(t, last, name); awp.header(t, spec, P)
+    awp.put(t, 'A7', awp.QUESTIONS_TITLE, F(True, awp.WHITE), awp.F_BAND, awp.TOP, awp.B_THIN)
+    for c in range(2, n + 1): t.cell(7, c).fill = awp.F_BAND; t.cell(7, c).border = awp.B_THIN
+    t.merge_cells(f'A7:{last}7')
+    for j, (lab, wd) in enumerate(heads): awp.put(t, f'{get_column_letter(j+1)}8', lab, F(True), awp.F_HDR, awp.CTRW, awp.B_THIN); t.column_dimensions[get_column_letter(j+1)].width = wd
+    t.row_dimensions[8].height = 22.5; r = 9; moved = 0
+    for (w, ws, qr), m in zip(blocks, maps):
+        awp.put(t, f'A{r}', f"{w['ref']}  {w.get('title') or ''}".strip(), F(True), awp.F_SECTION, awp.TOP, awp.B_THIN)
+        for c in range(2, n + 1): t.cell(r, c).fill = awp.F_SECTION; t.cell(r, c).border = awp.B_THIN
+        t.merge_cells(f'A{r}:{last}{r}'); t.row_dimensions[r].height = 13.5; r += 1
+        ref_style = next((ws.cell(x, c)._style for x in range(qr + 1, ws.max_row + 1) for c, d in m.items() if d == 7 and not blank(ws.cell(x, c).value)), None)
+        for x in range(qr + 1, ws.max_row + 1):
+            cells = [(c, d) for c, d in m.items() if not blank(ws.cell(x, c).value) or ws.cell(x, c).comment]
+            if not cells: continue
+            isq = not blank(ws.cell(x, 2).value)
+            for c, d in m.items():                                        # every mapped cell of the row moves with its style, so borders and highlighting stay
+                src, dst = ws.cell(x, c), t.cell(r, d + 1); dst.value = src.value; dst._style = copy.copy(src._style)
+                if src.comment: dst.comment = copy.copy(src.comment)
+            if isq:
+                dst = t.cell(r, 2); dst.value = w['ref']
+                if ref_style is not None: dst._style = copy.copy(ref_style)
+                for d in range(n):
+                    if t.cell(r, d + 1).border.left.style is None: t.cell(r, d + 1).border = awp.B_THIN
+            refit(t, r); r += 1; moved += 1
+        band, _ = awp._find(ws, 'Walkthrough questions', col='A'); start = min(band or qr, qr)
+        if start > 1 and all(blank(c.value) for c in ws[start - 1]): start -= 1
+        for mr in [mr for mr in list(ws.merged_cells.ranges) if mr.min_row >= start]: ws.unmerge_cells(str(mr))
+        for k in [k for k in ws.row_dimensions if k >= start]: ws.row_dimensions[k].height = None
+        ws.delete_rows(start, ws.max_row - start + 1)
+    t.freeze_panes = 'D9'; awp.finish(t)
+    idx = wbf[f'{P}200'] if f'{P}200' in wbf.sheetnames else None
+    if idx is not None:                                                  # the 200 index lists the new tab after the walkthrough sheets
+        rows = [x for x in range(1, idx.max_row + 1) if idx.cell(x, 7).value in [w['ref'] for w in spec['walkthroughs']]]
+        if rows:
+            x = rows[-1]; y = x + 2
+            for c in (1, 2, 7): idx.cell(y, c)._style = copy.copy(idx.cell(x, c)._style)
+            idx.cell(y, 1).value = (idx.cell(x, 1).value + 1) if isinstance(idx.cell(x, 1).value, (int, float)) else None; idx.cell(y, 2).value = 'Walkthrough questions (all sub-processes)'; idx.cell(y, 7).value = name
+    return moved
+
 def conclusion_rows(wbf, spec, rebuilt):
     out = {}
     for t in spec['tests']:
@@ -541,7 +620,7 @@ def not_carried(path, wbf, spec0, tests):
                 if not blank(c.value) and norm(c.value) not in have and not (isinstance(c.value, str) and c.value.startswith('=')): soft.append(f'{name}!{c.coordinate}: text outside the test layout "{str(c.value)[:120]}"')
     return hard, soft
 
-def write_log(path, src_name, out_name, log, sources, open_points, left, warn):
+def write_log(path, src_name, out_name, log, sources, open_points, left, warn, process=None):
     wb = Workbook(); ws = wb.active; ws.title = 'Changes'; F, put = awp.F, awp.put
     put(ws, 'A1', f'Update log - {out_name} (from {src_name}) - awp-update v{VERSION} - {dt.date.today().isoformat()}', F(True))
     hdr = ['No.', 'Sheet', 'Item', 'Field', 'Before', 'After', 'Source', 'Basis in the source']
@@ -552,7 +631,8 @@ def write_log(path, src_name, out_name, log, sources, open_points, left, warn):
         for j, v in enumerate(vals): put(ws, f'{get_column_letter(j+1)}{3+i}', v, F(), align=awp.CTR if j == 0 else awp.LEFTW, border=awp.B_THIN)
         awp.fit_height(ws, 3 + i, [(vals[4], 55), (vals[5], 55), (vals[7], 45)], min_h=13.5)
     awp.widths(ws, {'A': 6, 'B': 8, 'C': 22, 'D': 15, 'E': 55, 'F': 55, 'G': 14, 'H': 45}); ws.freeze_panes = 'A4'; awp.finish(ws)
-    for title, head, rows, w in [('Sources', ['Id', 'Document'], sorted(sources.items()), [10, 110]), ('Open points', ['From', 'Point for the team to resolve'], open_points, [24, 110]),
+    proc = [(sh, i, st) for sh, steps in sorted((process or {}).items()) for i, st in enumerate(steps, 1)]
+    for title, head, rows, w in [('Actual process', ['Sheet', 'Step', 'The process as the walkthrough established it'], proc, [10, 6, 120]), ('Sources', ['Id', 'Document'], sorted(sources.items()), [10, 110]), ('Open points', ['From', 'Point for the team to resolve'], open_points, [24, 110]),
                                  ('Still open', ['Sheet', 'What', 'Items'], left, [10, 50, 70]), ('Warnings', ['Warning from the script'], [(w_,) for w_ in warn], [140])]:
         s2 = wb.create_sheet(title)
         for j, h in enumerate(head): put(s2, f'{get_column_letter(j+1)}1', h, F(True), awp.F_HDR, awp.CTRW, awp.B_THIN)
@@ -572,7 +652,7 @@ def load_updates(paths):
 def run(path, out, files, force=False, write=True):
     if write and os.path.abspath(out) == os.path.abspath(path): raise SystemExit('OUT must be a new file: the workbook you were given is never overwritten')
     wbf, spec0, rep = read(path); P = spec0['prefix']; rcm = f'{P}100'
-    spec, log, err, warn, touched, sources, open_points, renumber = plan(spec0, load_updates(files))
+    spec, log, err, warn, touched, sources, open_points, renumber, info = plan(spec0, load_updates(files))
     for w in warn: print('warn:', w)
     for e in err: print('error:', e)
     if err: print(f'UPDATE NOT APPLIED - {len(err)} error(s); correct the update file(s) and run again'); return False
@@ -582,6 +662,7 @@ def run(path, out, files, force=False, write=True):
     for x in hard + soft: print('would be lost:', x)
     for e in log:
         if e['field'] == 'control_ref' and e['before'] is None and not e['source']: print(f"new control number: {e['after']} ({e['sheet']} {e['item']})")
+    for sh, (n0, n1, add, rem) in sorted(info['counts'].items()): print(f'{sh}: {n0} activity rows before, {n1} after ({add} added, {rem} removed) for {len(info["process"].get(sh, []))} actual process steps')
     by_sheet = Counter(e['sheet'] for e in log)
     summary = f"{len(log)} cells changed: " + ', '.join(f'{s} {n}' for s, n in sorted(by_sheet.items()))
     if not write:
@@ -597,20 +678,32 @@ def run(path, out, files, force=False, write=True):
     for w0, w1 in zip(spec0['walkthroughs'], spec['walkthroughs']):
         if w1['ref'] in touched: apply_wt(wbf[w1['ref']], w0, w1, w1['ref'] in renumber)
     if rcm in touched: apply_rcm(wbf[rcm], spec0, spec, rcm in renumber, conclusion_rows(wbf, spec, rebuilt), rebuilt)
+    moved = migrate_questions(wbf, spec)
     gone = set(controls(spec0)) - set(controls(spec))
     if gone: clear_question_refs(wbf, spec, gone)
     if '_build' in wbf.sheetnames:
         b = wbf['_build']; r = b.max_row + 1; b[f'A{r}'] = 'updated'; b[f'B{r}'] = f"awp-update v{VERSION} · {dt.date.today().isoformat()} · {summary} · sources: {'; '.join(sources.values())}"[:2000]
         b[f'A{r}'].font = awp.F(); b[f'B{r}'].font = awp.F()
     wbf.save(out); left = remaining(read(out)[1])
-    logp = os.path.splitext(out)[0] + ' - update log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft])
+    logp = os.path.splitext(out)[0] + ' - update log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft], info['process'])
     ok = awp.verify(out)
     print(f"UPDATE APPLIED - {summary} - only these cells were written; everything else in the workbook is as the team left it")
+    if moved: print(f"walkthrough questions moved to one tab, {awp.questions_ref(P)}: {moved} rows from {', '.join(w['ref'] for w in spec['walkthroughs'])}, with the team's responses, notes and extra columns; the walkthrough sheets now hold the process only")
     print(f'workbook: {out}\nupdate log: {logp}')
     for s, what, items in left: print(f'still open - {s}: {what}: {items}')
     for f, p in open_points: print(f'open point ({f}): {p}')
     if not ok: print('The updated workbook did not pass verify (lines above): correct the update file(s) and apply again from the original workbook.')
     return ok
+
+def move_questions(path, out, force=False):
+    if os.path.abspath(out) == os.path.abspath(path): raise SystemExit('OUT must be a new file: the workbook you were given is never overwritten')
+    wbf, spec, rep = read(path); hard, _ = not_carried(path, wbf, spec, set())
+    for x in hard: print('would be lost:', x)
+    if hard and not force: print(f'NOT MOVED - {len(hard)} item(s) cannot be kept when the workbook is saved (listed above). Ask the user; nothing was written.'); return False
+    moved = migrate_questions(wbf, spec)
+    if not moved: print(f'NOTHING TO MOVE - the walkthrough questions are already on tab {awp.questions_ref(spec["prefix"])}, or the sheets carry none'); return False
+    wbf.save(out); ok = awp.verify(out)
+    print(f"QUESTIONS MOVED - {moved} rows to tab {awp.questions_ref(spec['prefix'])}, with the team's responses, notes and extra columns; nothing else changed\nworkbook: {out}"); return ok
 
 # =============================================================================== selftest
 def selftest():
@@ -630,7 +723,8 @@ def selftest():
         src = os.path.join(d, 'awp.xlsx'); awp.build_awp(spec, src)
         wb = load_workbook(src); t = wb[awp.questions_ref('A')]; t['G10'] = 'Staff note: the Manager approves in the system.'; t['I11'] = 'Side note beside the questions.'
         ws = wb['A201']; ws['M12'] = 'Side note beside the activities.'; ws['F12'].comment = Comment('Reviewer comment', 'R'); wb.save(src)
-        upd = {'sources': {'M1': 'Walkthrough minutes (selftest)', 'N': 'Staff notes in the workbook'}, 'open_points': ['Obtain the approval matrix.'], 'changes': [
+        upd = {'sources': {'M1': 'Walkthrough minutes (selftest)', 'N': 'Staff notes in the workbook'}, 'open_points': ['Obtain the approval matrix.'],
+               'process': {'A201': ['The Senior Manager approves each form in the system.', 'The Finance Manager reviews the approved forms monthly.', 'The Manager files the form.']}, 'changes': [
             {'sheet': 'A201', 'op': 'background', 'mode': 'append', 'text': 'The walkthrough confirmed that approvals moved into the system in the period.', 'source': ['M1'], 'basis': 'Manager described the change.'},
             {'sheet': 'A201', 'op': 'activity', 'no': 1, 'set': {'activity': 'The Senior Manager approves each form in the system before it is processed.', 'performed_by': 'Senior Manager', 'de_finding': 'No design gap noted.'}, 'source': ['M1', 'N'], 'basis': 'Manager: the Senior Manager approves.'},
             {'sheet': 'A201', 'op': 'add_activity', 'after': 1, 'set': {'activity': 'The Finance Manager reviews the approved forms every month.', 'performed_by': 'Finance Manager', 'frequency': 'Monthly', 'control': 'The Finance Manager signs the form listing after the monthly review.', 'owner': 'Finance Manager', 'classification': 'Detective', 'type': 'Manual', 'de_finding': 'No design gap noted.', 'document': 'Signed form listing'}, 'source': ['M1'], 'basis': 'Finance Manager described the review.'},
@@ -658,5 +752,6 @@ if __name__ == '__main__':
     if cmd == 'selftest': sys.exit(0 if selftest() else 1)
     elif cmd == 'show' and len(a) >= 2: show(a[1], a[2:])
     elif cmd == 'check' and len(a) >= 3: sys.exit(0 if run(a[1], None, a[2:], write=False) else 1)
+    elif cmd == 'questions' and len(a) >= 3: sys.exit(0 if move_questions(a[1], a[2], force) else 1)
     elif cmd == 'apply' and len(a) >= 4: sys.exit(0 if run(a[1], a[2], a[3:], force=force) else 1)
     else: print(__doc__)

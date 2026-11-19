@@ -9,12 +9,14 @@ One JSON file per sheet keeps each step small: `A201.json`, `A202.json` … and 
     "N":  "Staff notes in the workbook",
     "S1": "SOP Leasing v3.2, section 6 (SOP-Leasing.docx)"
   },
+  "process": { "A203": ["Leasing tells Finance the deposit due when the agreement is signed.", "Finance confirms receipt to Leasing before handover.", "…one line per actual step, in order…"] },
   "changes": [ { "sheet": "A203", "op": "…", "…": "…", "source": ["M1"], "basis": "Finance Manager, lines 44-50" } ],
   "open_points": ["SOP 6.4 says 90 days from the lease end; the Finance Manager said 30 days from handover. Confirm before Test 6."]
 }
 ```
 - `sources`: the same id for the same document in every file. Describe the document so a reviewer can find it (what, who was interviewed by role, date, file name).
 - Every change needs `source` (one or more ids) and `basis`: where in the source the support is — the role who said it and the line or timestamp, or the document section; a short quote is best. No support, no change.
+- `process`: required for every walkthrough sheet the file changes. The actual process of that sheet, one line per step from start to finish, as the sources describe it — written before you look at the sheet's rows. The activity rows after the update should match it one for one: `check` prints `A203: 5 activity rows before, 6 after (2 added, 1 removed) for 6 actual process steps` and warns when the counts differ. It is written to the update log (sheet "Actual process").
 - `open_points`: contradictions between sources, things the walkthrough did not cover, documents still to obtain. They are printed and written to the log; they do not change the workbook. In `open_points` and `basis`, name a row by its control number or by the question's subject, not by its row number: row numbers move when rows are added or removed.
 - A whole sheet the sources do not cover gets no update file: say so in one open point (`A201, A202 not covered by the minutes received`).
 
@@ -67,6 +69,12 @@ The staff noted on question 2 that banker's guarantees are kept in a locked cabi
 {
   "sources": {"M1": "Walkthrough minutes, security deposits, Finance Manager and Leasing Manager, 17 Nov 2026 (minutes-deposits.txt)", "N": "Staff notes in the workbook", "S1": "SOP Leasing v3.2, section 6 (SOP-Leasing.docx)"},
   "open_points": ["SOP 6.4 says refunds are made within 90 days of the lease end; the Finance Manager said 30 days from handover. Confirm which applies before Test 6."],
+  "process": {"A203": [
+    "On signing the Tenancy Agreement the Leasing Manager emails Finance the deposit due.",
+    "The Accounts Executive checks the receipt against the Letter of Offer, posts it and confirms to Leasing before handover.",
+    "A deposit below three months' rent is approved by the CEO by email.",
+    "Leasing keeps the original guarantees; Finance reconciles the deposit listing to the general ledger monthly.",
+    "After the joint inspection the refund form is prepared, approved and paid."]},
   "changes": [
     {"sheet": "A203", "op": "background", "mode": "append", "text": "The walkthrough on 17 November 2026 confirmed that about 70% of deposits are held in cash and 30% as banker's guarantees. Two tenants were given a reduced deposit of two months' rent in the period, approved by the CEO by email.", "source": ["M1", "N"], "basis": "Finance Manager, lines 40-58; staff note on question 1."},
     {"sheet": "A203", "op": "activity", "no": 1, "set": {"de_finding": "No design gap noted."}, "source": ["M1", "S1"], "basis": "Practice described by the Leasing Manager (lines 12-20) agrees with SOP 6.1."},
@@ -95,6 +103,7 @@ and in `A100.json`, for the risks `show` listed under that sheet:
 ## What `check` and `apply` refuse (correct the file; do not work around)
 - a row number that does not exist, or appears twice on the sheet; a field that is not in the table above; the same cell changed twice;
 - a change without `source` or `basis`, or with a source id the file does not declare;
+- a walkthrough sheet changed without its `process` list;
 - a new activity or risk with required fields missing (they would show as `[placeholders]`);
 - new activity, control, background or section-title text that still carries a planning label ("Expected …");
 - a control number or test reference that does not exist after the update; a control number used twice;
@@ -102,10 +111,11 @@ and in `A100.json`, for the risks `show` listed under that sheet:
 - a change to a test sheet on which work is already recorded;
 - writing over the workbook you were given.
 
-Warnings to read: "should" / "is expected to" / "will be" in an activity or control; a design-effectiveness finding on a row that still reads "Expected …"; a design-effectiveness cell that loses its prior-year observation; a risk left without a control; an RCM audit strategy that quotes steps differently from its test; classification or type outside the house values.
+Warnings to read: a different number of activity rows than process steps listed; "should" / "is expected to" / "will be" in an activity or control; a design-effectiveness finding on a row that still reads "Expected …"; a design-effectiveness cell that loses its prior-year observation; a risk left without a control; an RCM audit strategy that quotes steps differently from its test; classification or type outside the house values.
 
 ## What the script guarantees
 - The workbook is edited in place. A change writes its cell and nothing else; a new activity or risk inserts one row (styled like its neighbour) and a removed activity deletes one; rows below move with their merged cells, heights, notes and comments. Rows that were written get the row height their text needs.
+- A workbook built before awp-generate 2.2 has its walkthrough questions moved from the foot of each 200 sheet to one tab (`<prefix>200Q`) on `apply`: questions, responses, notes typed around them and any column the team added, as they are. `python scripts/update.py questions AWP.xlsx OUT.xlsx` does only that.
 - Nothing else is touched: the walkthrough questions and responses (on their own tab, or at the foot of each 200 sheet in older workbooks), text typed beside a table, comments, highlighting, and every other sheet. Works on workbooks built by any awp-generate version.
 - The hidden `_build` sheet gets a line recording the update. `verify` (the same checks as awp-generate) runs on the result.
 - The update log has five sheets: Changes (sheet, item, field, before, after, source, basis), Sources, Open points, Still open, Warnings.
