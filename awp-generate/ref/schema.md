@@ -74,6 +74,7 @@ A library may use any token it declares in its own `token_defaults`; `validate` 
 }
 ```
 - Refs: walkthrough sheets `{P}201…`, tests `{P}301…`, controls `{sheet}-{n}`, DA sheet `da.ref` (default `{P}400`; legacy workbooks may use `DA`). `normalise()` fills missing refs in order.
+- `walkthroughs[].questions` are written to the questions tab `{P}200Q`, grouped by walkthrough sheet and numbered continuously; `export` reads them back into their walkthrough (and still reads older workbooks that carry them on each walkthrough sheet).
 - `link_results: true` puts a formula in the RCM "Testing Result" that shows the Conclusion cell of each WP-ref test sheet (several are joined with line breaks).
 - `detail_formulas`: per detail column, `{r}` is the row number; `n_steps` must equal the number of numbered audit steps.
 - `stamp: false` suppresses the build stamp and `_build` sheet (not recommended).

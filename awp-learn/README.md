@@ -1,6 +1,6 @@
 # awp-learn — maintainers' notes
 
-Current: **awp-learn v1.0** (engine: awp-generate v2.1) · libraries in `../awp-lib/`.
+Current: **awp-learn v1.0** (engine: awp-generate v2.2) · libraries in `../awp-lib/`.
 
 `scripts/learn.py` holds only the harvest and merge logic; everything it shares with building (export, token substitution, validation, library discovery) is imported from `awp-generate/scripts/awp.py`, which `release.py` copies into the zip next to `learn.py`. Change shared behaviour in awp-generate, never here.
 
