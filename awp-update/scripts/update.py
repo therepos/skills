@@ -1,5 +1,5 @@
 """
-update.py  v2.2 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
+update.py  v2.3 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
 
 Run from the folder that contains SKILL.md:
 
@@ -21,7 +21,7 @@ Only dependency: openpyxl. Shares its engine with awp-generate: scripts/awp.py n
 import copy, json, os, re, sys, zipfile, datetime as dt, importlib.util
 from collections import Counter
 
-VERSION = '2.2'
+VERSION = '2.3'
 HERE = os.path.dirname(os.path.abspath(__file__)); SKILL = os.path.dirname(HERE)
 try: sys.stdout.reconfigure(errors='replace')
 except Exception: pass
@@ -652,6 +652,25 @@ def write_log(path, src_name, out_name, log, sources, open_points, left, warn, p
         awp.widths(s2, {get_column_letter(j+1): x for j, x in enumerate(w)}); awp.finish(s2)
     wb.save(path)
 
+def verify_against(before_path, after_path):
+    """Runs the engine's verify on the result and separates what the update broke from what was already wrong in the workbook it was given.
+    Only a check that passed before and fails now blocks; an old failure is reported for the team to fix, and the update is delivered."""
+    import io, contextlib
+    def checks(p):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf): awp.verify(p)
+        return {l[5:].split(' - ')[0]: l for l in buf.getvalue().splitlines() if l.startswith(('PASS ', 'FAIL '))}, [l for l in buf.getvalue().splitlines() if l.startswith('note:')]
+    old, _ = checks(before_path); new, notes = checks(after_path)
+    broke = [l for k, l in new.items() if l.startswith('FAIL') and not old.get(k, 'PASS').startswith('FAIL')]
+    was = [l for k, l in new.items() if l.startswith('FAIL') and old.get(k, 'PASS').startswith('FAIL')]
+    for l in new.values():
+        if l.startswith('PASS'): print(l)
+    for l in was: print('ALREADY IN THE WORKBOOK BEFORE THE UPDATE (not caused by it; report it to the team, do not withhold the workbook): ' + l[5:])
+    for l in broke: print(l)
+    for l in notes: print(l)
+    n = len(new); print('VERIFY', 'PASSED' if not broke else 'FAILED', f'- {n - len(broke) - len(was)}/{n} checks' + (f'; {len(was)} issue(s) that were already in the workbook' if was else ''))
+    return not broke, [l[5:] for l in was]
+
 def load_updates(paths):
     out = []
     for p in paths:
@@ -694,15 +713,15 @@ def run(path, out, files, force=False, write=True):
     if '_build' in wbf.sheetnames:
         b = wbf['_build']; r = b.max_row + 1; b[f'A{r}'] = 'updated'; b[f'B{r}'] = f"awp-update v{VERSION} · {dt.date.today().isoformat()} · {summary} · sources: {'; '.join(sources.values())}"[:2000]
         b[f'A{r}'].font = awp.F(); b[f'B{r}'].font = awp.F()
-    wbf.save(out); left = remaining(read(out)[1])
-    logp = os.path.splitext(out)[0] + ' - update log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft], info['process'])
-    ok = awp.verify(out)
+    wbf.save(out); left = remaining(read(out)[1]); ok, was = verify_against(path, out)
+    logp = os.path.splitext(out)[0] + ' - update log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft] + [f'already in the workbook before the update, not caused by it: {x}' for x in was], info['process'])
     print(f"UPDATE APPLIED - {summary} - only these cells were written; everything else in the workbook is as the team left it")
     if moved: print(f"walkthrough questions moved to one tab, {awp.questions_ref(P)}: {moved} rows from {', '.join(w['ref'] for w in spec['walkthroughs'])}, with the team's responses, notes and extra columns; the walkthrough sheets now hold the process only")
     print(f'workbook: {out}\nupdate log: {logp}')
     for s, what, items in left: print(f'still open - {s}: {what}: {items}')
     for f, p in open_points: print(f'open point ({f}): {p}')
-    if not ok: print('The updated workbook did not pass verify (lines above): correct the update file(s) and apply again from the original workbook.')
+    for x in was: print(f'already in the workbook before the update: {x}')
+    if not ok: print('The update broke a check that passed before (FAIL lines above): correct the update file(s) and apply again from the original workbook.')
     return ok
 
 def move_questions(path, out, force=False):
@@ -712,7 +731,7 @@ def move_questions(path, out, force=False):
     if hard and not force: print(f'NOT MOVED - {len(hard)} item(s) cannot be kept when the workbook is saved (listed above). Ask the user; nothing was written.'); return False
     moved = migrate_questions(wbf, spec)
     if not moved: print(f'NOTHING TO MOVE - the walkthrough questions are already on tab {awp.questions_ref(spec["prefix"])}, or the sheets carry none'); return False
-    wbf.save(out); ok = awp.verify(out)
+    wbf.save(out); ok, _ = verify_against(path, out)
     print(f"QUESTIONS MOVED - {moved} rows to tab {awp.questions_ref(spec['prefix'])}, with the team's responses, notes and extra columns; nothing else changed\nworkbook: {out}"); return ok
 
 # =============================================================================== selftest
