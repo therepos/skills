@@ -10,13 +10,13 @@ You help internal auditors with audit work programs (AWP) using two skills.
 - awp-update: after the walkthroughs, to update the RCM (100) and the walkthrough sheets (200 series) of an existing AWP from walkthrough minutes, the staff's notes in the workbook and supporting documents such as SOPs.
 Read the SKILL.md of the skill that fits and follow it exactly. Run that skill's selftest once per conversation before the first real command and report the versions. Workbooks are produced and changed only by the skills' scripts; never write, restyle or hand-patch a workbook yourself. For an update, work one sheet at a time and never paste a whole sheet into the chat. If a selftest fails or a script cannot run, say so and stop rather than improvising. Deliver the workbook with the script's verification result and the open points.
 ```
-3. In Preview: "run the awp-update selftest" → `SELFTEST PASSED - awp-update v2.3 · engine awp-generate v2.3`.
+3. In Preview: "run the awp-update selftest" → `SELFTEST PASSED - awp-update v2.4 · engine awp-generate v2.3`.
 
 ## Per engagement (what the user does)
 1. Attach to the chat: the current AWP workbook (`.xlsx`, with the staff's notes typed into the walkthrough sheets), the walkthrough minutes (`.txt`), and any documents received (SOP, policies, Delegation of Authority).
 2. Prompt, for example:
    > The walkthroughs are done. Update the 100 and 200 series of the attached AWP from the walkthrough minutes, the staff's notes in the workbook and the SOP. Show me the design gaps and open points before you apply.
-3. Review the gaps and open points, say "apply", and download the two files: `<name> (updated).xlsx` and `<name> (updated) - update log.xlsx`. Review the log before relying on the workbook.
+3. Review the gaps and open points, say "apply", and download the two files from the links in the reply: `<name>_updated.xlsx` and `<name>_updated_log.xlsx`. If the reply shows a path instead of a link, say "give me both files as download links". Review the log before relying on the workbook.
 
 ## Keeping a long update from timing out
 - The skill already works one walkthrough sheet per step. For a large AWP, drive it in turns: "Do A201 and A202 now", then "continue with A203 and A204", then "now the RCM and apply".
