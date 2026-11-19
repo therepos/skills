@@ -1,5 +1,5 @@
 """
-update.py  v1.0 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
+update.py  v1.1 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
 
 Run from the folder that contains SKILL.md:
 
@@ -21,7 +21,7 @@ Only dependency: openpyxl. Shares its engine with awp-generate: scripts/awp.py n
 import copy, json, os, re, sys, zipfile, datetime as dt, importlib.util
 from collections import Counter
 
-VERSION = '1.0'
+VERSION = '1.1'
 HERE = os.path.dirname(os.path.abspath(__file__)); SKILL = os.path.dirname(HERE)
 try: sys.stdout.reconfigure(errors='replace')
 except Exception: pass
@@ -38,8 +38,11 @@ Q_REQUIRED = ('question', 'why', 'documents', 'interviewee')
 R_FIELDS = ('sub_process', 'risk', 'control_no', 'de_finding', 'audit_strategy', 'wp_ref')
 R_REQUIRED = ('sub_process', 'risk', 'control_no', 'de_finding', 'audit_strategy', 'wp_ref')
 T_FIELDS = ('objective', 'basis', 'population', 'sample_size', 'source', 'steps', 'detail_title', 'detail_columns', 'detail_formulas', 'n_rows')
-OPS = ('background', 'activity', 'add_activity', 'remove_activity', 'question', 'add_question', 'risk', 'add_risk', 'test')
+OPS = ('background', 'section', 'activity', 'add_activity', 'remove_activity', 'question', 'add_question', 'risk', 'add_risk', 'test')
 PENDING = 'to be concluded after the walkthrough'
+PLANNED = re.compile(r'(?:^|\n|[(:\[]\s*)\s*expected\b|\bexpected\s+(?:process|control|activit|procedure|practice|flow|step)', re.I)   # planning labels: "Expected: ...", "Expected process", "(expected)" - what we assumed before the walkthrough
+SHOULD = re.compile(r'\bshould\b|\b(?:is|are) expected to\b|\bis to be\b|\bare to be\b|\bwill be\b|\bis required to\b|\bare required to\b', re.I)   # what ought to happen, not what is done
+def planned(*texts): return any(PLANNED.search(str(t)) for t in texts if not blank(t))
 T_DEFAULTS = {'notes': 'Nil', 'findings': 'Nil', 'conclusion': 'To be concluded on completion of fieldwork.'}
 CLASSIFICATIONS = ('preventive', 'detective', 'preventive and detective'); TYPES = ('manual', 'it', 'manual and it')
 
@@ -86,6 +89,8 @@ def remaining(spec):
     for w in spec['walkthroughs']:
         q = [key(x.get('no')) for x in w['questions'] if blank(x.get('response'))]
         c = [a['control_ref'] for s in w['sections'] for a in s['activities'] if a.get('control_ref') and blank(a.get('de_finding'))]
+        p = (['background'] if planned(w.get('background')) else []) + [f"section \"{s.get('title')}\"" for s in w['sections'] if planned(s.get('title'))] + [f"activity {key(a.get('no'))}" for s in w['sections'] for a in s['activities'] if planned(a.get('activity'), a.get('control'))]
+        if p: out.append((w['ref'], 'still in planning wording ("Expected ..."), not yet rewritten as the actual process', ', '.join(p)))
         if q: out.append((w['ref'], 'questions without a response', ', '.join(q)))
         if c: out.append((w['ref'], 'controls without a design-effectiveness finding', ', '.join(c)))
     r = [key(x.get('sn')) for s in spec['rcm']['sections'] for x in s['rows'] if blank(x.get('de_finding')) or str(x['de_finding']).strip().lower().startswith(PENDING)]
@@ -125,13 +130,13 @@ def show(path, sheets):
             L.append('    work recorded: ' + ('yes - this sheet can no longer be changed by an update' if test_started(t) else 'no'))
             continue
         if not w: L.append(f'{name}: no such sheet (walkthrough sheets: ' + ', '.join(x['ref'] for x in spec['walkthroughs']) + ')'); continue
-        L.append(f"=== {w['ref']}  {w.get('title')} ==="); L.append('BACKGROUND'); L.append('    ' + v(w.get('background')).replace('\n', '\n    '))
+        L.append(f"=== {w['ref']}  {w.get('title')} ==="); L.append('BACKGROUND' + (' | PLANNING WORDING - rewrite as the actual process' if planned(w.get('background')) else '')); L.append('    ' + v(w.get('background')).replace('\n', '\n    '))
         L.append('ACTIVITIES')
         for s in w['sections']:
             L.append(f"[section] {s.get('title')}")
             for a in s['activities']:
                 if 'refer_to' in a: L.append(f"activity {a['_k']} | cross-reference only: {a['refer_to']}"); continue
-                L.append(f"activity {a['_k']} | control {a.get('control_ref') or '(none)'}")
+                L.append(f"activity {a['_k']} | control {a.get('control_ref') or '(none)'}" + (' | PLANNING WORDING - rewrite as the actual process' if planned(a.get('activity'), a.get('control')) else ''))
                 L += [f'    {f}: {v(a.get(f))}' for f in A_FIELDS]
         L.append('QUESTIONS')
         for q in w['questions']:
@@ -224,6 +229,10 @@ def plan(spec0, updates):
                 if ch.get('mode') == 'append': new = (str(w.get('background') or '').rstrip() + '\n\n' + str(new).strip()).strip()
                 elif ch.get('mode') not in (None, 'replace'): err.append(f'{where}: "mode" is replace (default) or append'); continue
                 setf(w, {'background': new}, ch, sheet, 'background', where, ('background',))
+            elif op == 'section':
+                title = str(ch.get('section') or '').strip(); hit = [s for s in w['sections'] if title and str(s.get('title') or '').lower().startswith(title.lower())]
+                if len(hit) != 1: err.append(f'{where}: "section" must be the start of exactly one existing section title on {sheet} ({"; ".join(str(s.get("title")) for s in w["sections"])})'); continue
+                setf(hit[0], fields, ch, sheet, f'section "{hit[0].get("title")}"', where, ('title',))
             elif op == 'activity':
                 a = find(acts, ch.get('no'), 'activity', where)
                 if not a: continue
@@ -320,10 +329,16 @@ def plan(spec0, updates):
             if not blank(a.get('type')) and str(a['type']).strip().lower() not in TYPES and any(e['obj'] is a and e['field'] == 'type' for e in log): warn.append(f"{w['ref']} activity {a.get('no')}: type \"{a['type']}\" - the house values are Manual / IT / Manual and IT")
     for e in log:
         txt = json.dumps(e['after'], ensure_ascii=False) if isinstance(e['after'], (list, dict)) else str(e['after'] or '')
+        if e['field'] in ('activity', 'control', 'background', 'title') and e['sheet'] in wts:
+            if PLANNED.search(txt): err.append(f"{e['sheet']} {e['item']} \"{e['field']}\": the new text still says \"{PLANNED.search(txt).group(0)}\" - write what the walkthrough established as fact (who does what, when, with what evidence); if the sources do not establish it, leave the row unchanged")
+            elif e['field'] in ('activity', 'control') and SHOULD.search(txt): warn.append(f"{e['sheet']} {e['item']} \"{e['field']}\": \"{SHOULD.search(txt).group(0)}\" describes what ought to happen - write what is done, in the present tense (a requirement the client does not follow belongs in the design-effectiveness finding)")
         if re.search(r'\{[A-Za-z_0-9]+\}', txt) or re.match(r'^\[.{3,}\]$', txt.strip()): err.append(f"{e['sheet']} {e['item']} \"{e['field']}\": the new text still holds a {{TOKEN}} or a [placeholder] - write the engagement's actual words")
     before = {m for s, m in awp.validate(_clean(spec0))}
     warn += [m for s, m in awp.validate(_clean(spec)) if m not in before]
     if any(e['sheet'] in tests for e in log) or rcm in renumber: touched.add(rcm)
+    for w in spec['walkthroughs']:                         # a design conclusion on a row that still describes the assumed process
+        for a in [a for s in w['sections'] for a in s['activities'] if planned(a.get('activity'), a.get('control'))]:
+            if any(e.get('obj') is a and e['field'] == 'de_finding' for e in log): warn.append(f"{w['ref']} activity {a.get('_k', 'new')}: a design-effectiveness finding is given but the activity or control still reads \"Expected ...\" - rewrite both as the actual process in the same change")
     for e in log:                                          # final numbers in the log (rows are renumbered after additions and removals)
         o = e.pop('obj', None)
         if o is None or o.get('_removed'): continue

@@ -1,6 +1,6 @@
 # awp-update — maintainers' notes
 
-Current: **awp-update v1.0** (engine: awp-generate v2.1). No libraries: the skill reads and writes an engagement workbook only.
+Current: **awp-update v1.1** (engine: awp-generate v2.1). No libraries: the skill reads and writes an engagement workbook only.
 
 `scripts/update.py` holds the read / plan / apply logic. The house format is not duplicated here: changed sheets are rebuilt with `build_rcm`, `build_walkthrough` and `build_test` from `awp-generate/scripts/awp.py`, which `release.py` copies into the zip next to `update.py`, and the workbook is read with its `export_spec`. Change the format in awp-generate, never here.
 
@@ -16,4 +16,5 @@ Current: **awp-update v1.0** (engine: awp-generate v2.1). No libraries: the skil
 - **Row numbers in update files are the original workbook's.** All files are applied in one `apply`; renumbering happens once at the end. Control numbers never change; new controls take the next free number on their sheet.
 - **Rows are rewritten, rarely removed.** A planned control the client lacks is a design gap to record, not a row to delete; `remove_activity` exists for activities that do not exist at the client and cleans the references it leaves behind.
 - **The RCM follows the test.** When a test's steps change, the RCM row that quoted the full steps is updated with it; rows that quote selected steps are flagged by the engine's validator.
+- **Expected becomes actual, enforced in code.** Planning labels ("Expected: …", "Expected process") are detected by pattern: `show` tags them, the still-open list reports them, and `check` refuses new text that keeps one. The pattern matches labels, not the ordinary word ("arrears are expected to be settled" in a library background is not a label). Rows the sources do not cover keep their label on purpose.
 - **Out of scope for now:** recording test work (300 series) and conclusions; harvesting (awp-learn).
