@@ -6,7 +6,7 @@ Run from the folder that contains SKILL.md:
     python scripts/update.py selftest                                 proves the environment and prints the versions (run first)
     python scripts/update.py show   AWP.xlsx                          overview: sheets, counts, what is still open
     python scripts/update.py show   AWP.xlsx A202 [A203 ...]          one sheet as text: background, activities, questions with the staff's responses
-    python scripts/update.py show   AWP.xlsx rcm                      the risk and control matrix as text
+    python scripts/update.py show   AWP.xlsx rcm [full]               the risk and control matrix as text (full: with every audit step)
     python scripts/update.py check  AWP.xlsx UPDATE.json [...]        validates update files; writes nothing
     python scripts/update.py apply  AWP.xlsx OUT.xlsx UPDATE.json [...]   applies them: OUT.xlsx + "OUT - update log.xlsx", then verifies OUT
 
@@ -95,6 +95,10 @@ def remaining(spec):
 # =============================================================================== show
 def show(path, sheets):
     _, spec, rep = read(path); P = spec['prefix']; L = []; v = lambda x: '(blank)' if blank(x) else str(x).strip()
+    full = 'full' in [x.lower() for x in sheets]; sheets = [x for x in sheets if x.lower() != 'full']
+    def strategy(r):
+        t = v(r.get('audit_strategy')); lines = t.split('\n')
+        return t if full or len(lines) < 3 else f'{lines[0]} … (+{len(lines) - 1} lines; add "full" after rcm to print them)'
     if not sheets:
         L.append(f"{os.path.basename(path)} - {spec.get('client')} / {spec.get('process')} / {spec.get('period')}")
         L.append(f"{P}100  risk and control matrix: {sum(len(s['rows']) for s in spec['rcm']['sections'])} risks in {len(spec['rcm']['sections'])} sections")
@@ -111,7 +115,7 @@ def show(path, sheets):
                 L.append(f"[section] {s.get('title')}")
                 for r in s['rows']:
                     L.append(f"risk {r['_k']} | controls: {', '.join(refs_of(r.get('control_no'))) or '-'} | tests: {', '.join(refs_of(r.get('wp_ref'))) or '-'}")
-                    L += [f'    {f}: {v(r.get(f))}' for f in ('sub_process', 'risk', 'de_finding', 'audit_strategy')]
+                    L += [f'    {f}: {v(r.get(f))}' for f in ('sub_process', 'risk', 'de_finding')] + [f'    audit_strategy: {strategy(r)}']
             continue
         w = next((x for x in spec['walkthroughs'] if x['ref'].lower() == name.lower()), None)
         t = next((x for x in spec['tests'] if x['ref'].lower() == name.lower()), None)
@@ -134,7 +138,10 @@ def show(path, sheets):
             L.append(f"question {q['_k']} | control {q.get('control_ref') or '(none)'} | interviewee: {v(q.get('interviewee'))}")
             L += [f'    {f}: {v(q.get(f))}' for f in ('question', 'why', 'documents', 'response')]
         rows = [r for s in spec['rcm']['sections'] for r in s['rows'] if set(refs_of(r.get('control_no'))) & {a.get('control_ref') for s2 in w['sections'] for a in s2['activities']}]
-        L.append(f'RISKS IN {P}100 THAT RELY ON THESE CONTROLS: ' + ('; '.join(f"risk {r['_k']} ({r.get('sub_process')}: {', '.join(refs_of(r.get('control_no')))})" for r in rows) or 'none'))
+        L.append(f'RISKS IN {P}100 THAT RELY ON THESE CONTROLS' + ('' if rows else ': none'))
+        for r in rows:
+            L.append(f"risk {r['_k']} | controls: {', '.join(refs_of(r.get('control_no')))} | tests: {', '.join(refs_of(r.get('wp_ref'))) or '-'}")
+            L += [f'    {f}: {v(r.get(f))}' for f in ('sub_process', 'risk', 'de_finding')] + [f'    audit_strategy: {strategy(r)}']
     L += [f'note: {r}' for r in rep]
     print('\n'.join(L)); return L
 
@@ -319,7 +326,9 @@ def plan(spec0, updates):
     if any(e['sheet'] in tests for e in log) or rcm in renumber: touched.add(rcm)
     for e in log:                                          # final numbers in the log (rows are renumbered after additions and removals)
         o = e.pop('obj', None)
-        if o is not None and o.get('_new') and not o.get('_removed'): e['item'] += f" (now no. {o.get('no', o.get('sn'))})"
+        if o is None or o.get('_removed'): continue
+        now = o.get('no', o.get('sn'))
+        if now is not None and (o.get('_new') or (e['item'].split(' ')[0] in ('activity', 'question', 'risk') and key(now) != o.get('_k'))): e['item'] += f" (now no. {now})"
     return spec, log, err, warn, touched, sources, open_points
 
 def _clean(spec):
@@ -408,6 +417,8 @@ def run(path, out, files, force=False, write=True):
     if not log: print('UPDATE NOT APPLIED - the update files change nothing'); return False
     hard, soft = not_carried(path, wbf, spec0, touched)
     for x in hard + soft: print('would be lost:', x)
+    for e in log:
+        if e['field'] == 'control_ref' and e['before'] is None and not e['source']: print(f"new control number: {e['after']} ({e['sheet']} {e['item']})")
     by_sheet = Counter(e['sheet'] for e in log)
     summary = f"{len(log)} cells changed: " + ', '.join(f'{s} {n}' for s, n in sorted(by_sheet.items()))
     if not write:

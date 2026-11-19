@@ -15,7 +15,8 @@ One JSON file per sheet keeps each step small: `A201.json`, `A202.json` … and 
 ```
 - `sources`: the same id for the same document in every file. Describe the document so a reviewer can find it (what, who was interviewed by role, date, file name).
 - Every change needs `source` (one or more ids) and `basis`: where in the source the support is — the role who said it and the line or timestamp, or the document section; a short quote is best. No support, no change.
-- `open_points`: contradictions between sources, things the walkthrough did not cover, documents still to obtain. They are printed and written to the log; they do not change the workbook.
+- `open_points`: contradictions between sources, things the walkthrough did not cover, documents still to obtain. They are printed and written to the log; they do not change the workbook. In `open_points` and `basis`, name a row by its control number or by the question's subject, not by its row number: row numbers move when rows are added or removed.
+- A whole sheet the sources do not cover gets no update file: say so in one open point (`A201, A202 not covered by the minutes received`).
 
 ## Change types
 
@@ -33,15 +34,22 @@ One JSON file per sheet keeps each step small: `A201.json`, `A202.json` … and 
 
 Control numbers of existing controls never change. Testing Result in the RCM is a link to the test's conclusion and is not set here.
 
+- **New control numbers.** New controls take the next free numbers on their sheet in row order. When the RCM file must cite a new control, pin its number with `"control_ref"` in the `add_activity` (the next free number is one above the highest that `show` prints); `check` prints every number it assigns.
+- **A control may sit under more than one risk**; list it under every risk it addresses. The order within `control_no` is free.
+- **A question without a control** (`control_ref` left out) is fine when it concerns no control on the sheet.
+- **Splitting a row.** Keep a library row whole when one person performs both parts and the outcome is the same. Split it when the parts have different owners or different design conclusions: the original row keeps its control number and the part that control describes; the other part becomes an `add_activity` with a new number.
+
 ## Wording
 - **Activity**: who does what, when, in which system, with which document; present tense; one activity per row; roles, never names. Write what the walkthrough established, not what the library assumed.
 - **Control**: what prevents or detects the risk and how it is evidenced. Where there is none: `No control is in place: <what happens instead>.`
 - **Performed by / Owner**: role titles. **Frequency**: `As and when required`, `Daily`, `Weekly`, `Monthly`, `Quarterly`, `Annually`, `One-off`. **Classification**: `Preventive` / `Detective`. **Type**: `Manual` / `IT` / `Manual and IT`.
-- **Walkthrough document**: what was actually sighted or obtained (`Refund deposit forms for March 2027, sighted`), or what is still to be obtained.
-- **Design-effectiveness finding, per control**: `No design gap noted.` · `Design gap: there is no register of the expiry of banker's guarantees, so a guarantee may lapse before the lease ends, leaving the lease unsecured.` · `To be confirmed: the approval limits, pending the Delegation of Authority from the Head of Finance.` State the consequence; say when the practice differs from the SOP or the SOP is silent.
+- **Walkthrough document**: change it only when a source shows that a document was sighted, obtained or promised (`Refund deposit forms for March 2027, sighted` · `AR ageing for September, requested from the Accounts Executive`); otherwise leave the planned document as it is.
+- **Background**: `append` for what the walkthrough adds; `replace` (full text) when the existing background says something the sources contradict.
+- **Design-effectiveness finding, per control**: `No design gap noted.` · `Design gap: there is no register of the expiry of banker's guarantees, so a guarantee may lapse before the lease ends, leaving the lease unsecured.` · `To be confirmed: the approval limits, pending the Delegation of Authority from the Head of Finance.` State the consequence; say when the practice differs from the SOP or the SOP is silent. One cell may combine them when a control is sound in one part and weak in another (`Design gap: … No design gap noted for the approval of the form. To be confirmed: …`).
 - **Design-effectiveness conclusion, per risk (RCM)**: one conclusion over all the risk's controls — `No design gap noted.` or `Design gap: <gap> (A203-3). No other design gap noted.` Keep a prior-year observation that is already in the cell and add one sentence on whether the walkthrough shows it remediated (the script warns if you drop it).
 - **Risk**: add the structural cause the walkthrough showed (small team, shared login, manual spreadsheet) to the existing sentence; keep "X may … This may result in …".
-- **Response** added from the minutes: the substance in one to three sentences, starting `Per the minutes (<role>): …` when it is appended to a staff note. Not the transcript itself.
+- **Response** added from the minutes: the substance in one to three sentences, starting `Per the minutes (<role>): …` when it is appended to a staff note. Not the transcript itself. A staff note that sits under the wrong question stays where it is: use it as evidence for the question it answers, and raise an open point so the team can move it.
+- **Tests**: change a test only when the sources settle the fact (a step names a document or timeline the client does not have, or a gap just found has no step). When it depends on an open point, raise the open point and leave the test.
 - No `[placeholders]` and no `{TOKENS}`: write the engagement's actual words. No client fact that is not in a source.
 
 ## Worked example — one sheet
