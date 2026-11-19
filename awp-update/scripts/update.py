@@ -1,5 +1,5 @@
 """
-update.py  v2.3 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
+update.py  v2.4 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
 
 Run from the folder that contains SKILL.md:
 
@@ -8,7 +8,8 @@ Run from the folder that contains SKILL.md:
     python scripts/update.py show   AWP.xlsx A202 [A203 ...]          one sheet as text: background, activities, its walkthrough questions with the staff's notes
     python scripts/update.py show   AWP.xlsx rcm [full]               the risk and control matrix as text (full: with every audit step)
     python scripts/update.py check  AWP.xlsx UPDATE.json [...]        validates update files; writes nothing
-    python scripts/update.py apply  AWP.xlsx OUT.xlsx UPDATE.json [...]   applies them: OUT.xlsx + "OUT - update log.xlsx", then verifies OUT
+    python scripts/update.py apply  AWP.xlsx OUTDIR  UPDATE.json [...]    applies them and verifies; writes OUTDIR/<name>_updated.xlsx and <name>_updated_log.xlsx
+                                                                      (OUTDIR is a folder: the script names the files so that a chat can link them)
     python scripts/update.py questions AWP.xlsx OUT.xlsx              only moves the walkthrough questions of an older workbook to one tab (apply does this too)
 
 The model writes the update files (what changes, from which source, on what basis); this script edits the workbook in place:
@@ -21,7 +22,7 @@ Only dependency: openpyxl. Shares its engine with awp-generate: scripts/awp.py n
 import copy, json, os, re, sys, zipfile, datetime as dt, importlib.util
 from collections import Counter
 
-VERSION = '2.3'
+VERSION = '2.4'
 HERE = os.path.dirname(os.path.abspath(__file__)); SKILL = os.path.dirname(HERE)
 try: sys.stdout.reconfigure(errors='replace')
 except Exception: pass
@@ -671,6 +672,17 @@ def verify_against(before_path, after_path):
     n = len(new); print('VERIFY', 'PASSED' if not broke else 'FAILED', f'- {n - len(broke) - len(was)}/{n} checks' + (f'; {len(was)} issue(s) that were already in the workbook' if was else ''))
     return not broke, [l[5:] for l in was]
 
+def out_path(src, out, suffix):
+    """OUT may be a folder (the usual case): the file is then named after the workbook, with only letters, digits, hyphens and underscores,
+    because a chat cannot offer a file for download when its name has spaces or brackets."""
+    if out.endswith(('/', os.sep)) or os.path.isdir(out) or not out.lower().endswith('.xlsx'):
+        os.makedirs(out, exist_ok=True); stem = re.sub(r'[^A-Za-z0-9.-]+', '_', os.path.splitext(os.path.basename(src))[0]).strip('_') or 'AWP'
+        return os.path.join(out, f'{stem}_{suffix}.xlsx')
+    return out
+def handover(*paths):
+    print('HAND OVER THESE FILES - in a chat, give each one as a download link, exactly like this (a bare path is not a link the user can open):')
+    for p in paths: print(f'  [{os.path.basename(p)}](sandbox:{os.path.abspath(p)})')
+
 def load_updates(paths):
     out = []
     for p in paths:
@@ -679,6 +691,7 @@ def load_updates(paths):
     return out
 
 def run(path, out, files, force=False, write=True):
+    if write: out = out_path(path, out, 'updated')
     if write and os.path.abspath(out) == os.path.abspath(path): raise SystemExit('OUT must be a new file: the workbook you were given is never overwritten')
     wbf, spec0, rep = read(path); P = spec0['prefix']; rcm = f'{P}100'
     spec, log, err, warn, touched, sources, open_points, renumber, info = plan(spec0, load_updates(files))
@@ -714,7 +727,7 @@ def run(path, out, files, force=False, write=True):
         b = wbf['_build']; r = b.max_row + 1; b[f'A{r}'] = 'updated'; b[f'B{r}'] = f"awp-update v{VERSION} · {dt.date.today().isoformat()} · {summary} · sources: {'; '.join(sources.values())}"[:2000]
         b[f'A{r}'].font = awp.F(); b[f'B{r}'].font = awp.F()
     wbf.save(out); left = remaining(read(out)[1]); ok, was = verify_against(path, out)
-    logp = os.path.splitext(out)[0] + ' - update log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft] + [f'already in the workbook before the update, not caused by it: {x}' for x in was], info['process'])
+    logp = os.path.splitext(out)[0] + '_log.xlsx'; write_log(logp, os.path.basename(path), os.path.basename(out), log, sources, open_points, left, warn + [f'dropped with --force: {x}' for x in hard + soft] + [f'already in the workbook before the update, not caused by it: {x}' for x in was], info['process'])
     print(f"UPDATE APPLIED - {summary} - only these cells were written; everything else in the workbook is as the team left it")
     if moved: print(f"walkthrough questions moved to one tab, {awp.questions_ref(P)}: {moved} rows from {', '.join(w['ref'] for w in spec['walkthroughs'])}, with the team's responses, notes and extra columns; the walkthrough sheets now hold the process only")
     print(f'workbook: {out}\nupdate log: {logp}')
@@ -722,9 +735,11 @@ def run(path, out, files, force=False, write=True):
     for f, p in open_points: print(f'open point ({f}): {p}')
     for x in was: print(f'already in the workbook before the update: {x}')
     if not ok: print('The update broke a check that passed before (FAIL lines above): correct the update file(s) and apply again from the original workbook.')
+    else: handover(out, logp)
     return ok
 
 def move_questions(path, out, force=False):
+    out = out_path(path, out, 'questions_moved')
     if os.path.abspath(out) == os.path.abspath(path): raise SystemExit('OUT must be a new file: the workbook you were given is never overwritten')
     wbf, spec, rep = read(path); hard, _ = not_carried(path, wbf, spec, set())
     for x in hard: print('would be lost:', x)
@@ -732,7 +747,7 @@ def move_questions(path, out, force=False):
     moved = migrate_questions(wbf, spec)
     if not moved: print(f'NOTHING TO MOVE - the walkthrough questions are already on tab {awp.questions_ref(spec["prefix"])}, or the sheets carry none'); return False
     wbf.save(out); ok, _ = verify_against(path, out)
-    print(f"QUESTIONS MOVED - {moved} rows to tab {awp.questions_ref(spec['prefix'])}, with the team's responses, notes and extra columns; nothing else changed\nworkbook: {out}"); return ok
+    print(f"QUESTIONS MOVED - {moved} rows to tab {awp.questions_ref(spec['prefix'])}, with the team's responses, notes and extra columns; nothing else changed\nworkbook: {out}"); handover(out); return ok
 
 # =============================================================================== selftest
 def selftest():
@@ -768,7 +783,7 @@ def selftest():
                   b['A201']['M13'].value == 'Side note beside the activities.' and b['A201']['F13'].comment is not None,   # notes and comments move with their row
                   [x.get('control_ref') for x in w['sections'][0]['activities']] == ['A201-1', 'A201-4', 'A201-2'], [x['no'] for x in w['sections'][0]['activities']] == [1, 2, 3],
                   not planned(w['sections'][0]['activities'][0]['activity']), s2['rcm']['sections'][0]['rows'][0]['de_finding'].startswith('No design gap'), str(b['A100']['G9'].value).startswith('='),
-                  os.path.exists(os.path.splitext(out)[0] + ' - update log.xlsx')]
+                  os.path.exists(os.path.splitext(out)[0] + '_log.xlsx')]
         bad = dict(upd, changes=[{'sheet': 'A201', 'op': 'activity', 'no': 2, 'set': {'control': 'Expected control: the form is signed.'}, 'source': ['M1'], 'basis': 'x'}]); awp.save_json(bad, up)
         with contextlib.redirect_stdout(buf): checks.append(run(src, os.path.join(d, 'o2.xlsx'), [up]) is False)       # planning wording is refused
         ok = all(checks); msg = '' if ok else f' - failed checks {[i for i, c in enumerate(checks) if not c]}\n' + buf.getvalue()

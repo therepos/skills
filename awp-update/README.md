@@ -1,6 +1,6 @@
 # awp-update — maintainers' notes
 
-Current: **awp-update v2.3** (engine: awp-generate v2.3). No libraries: the skill reads and writes an engagement workbook only.
+Current: **awp-update v2.4** (engine: awp-generate v2.3). No libraries: the skill reads and writes an engagement workbook only.
 
 `scripts/update.py` holds the read / plan / apply logic. It reads the workbook with `export_spec` from `awp-generate/scripts/awp.py` (which `release.py` copies into the zip next to `update.py`) and edits the 100 and 200 sheets in place; only a test sheet whose steps change is laid out again, with the engine's `build_test`.
 
@@ -21,4 +21,5 @@ Current: **awp-update v2.3** (engine: awp-generate v2.3). No libraries: the skil
 - **Older workbooks are brought to the 2.2 layout on apply.** `migrate_questions` moves each sheet's question block to the questions tab by header text, so columns the team inserted (an interviewee's notes column, say) and notes around the table go with it. The questions keep their own numbers per sheet.
 - **The interview tab is the criteria, the 200 sheet the condition.** awp-generate 2.3 writes the expected activity and control per control number on the interview tab, with the team's "In place?" and "Gap noted". An update never writes there, so the expectation survives the rewrite of the 200 sheets; `show` prints it and `plan` warns when a finding of no gap contradicts the team's own mark. A workbook moved from an older layout gets the questions tab without the expected columns: by then nobody can say whether its 200 rows are still the draft.
 - **Verify blocks only on what the update broke.** Engagement workbooks arrive with their own inconsistencies (a Scope key process with no RCM section, a short walkthrough sheet). `verify` runs before and after; a check that already failed is reported and logged, never a reason to withhold the update.
+- **The script names the output and prints the links.** A model left to name the files kept the workbook's own name, with spaces and brackets, and then printed a percent-encoded sandbox path the user could not open. `apply` and `questions` take an output folder, write names a chat can link, and print the markdown links to paste.
 - **Out of scope for now:** recording test work (300 series) and conclusions; harvesting (awp-learn).
