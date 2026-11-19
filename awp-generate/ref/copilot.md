@@ -2,6 +2,9 @@
 
 The model's job is judgement (reading the material, choosing modules, deepening the spec, reviewing learn proposals). The workbook itself is produced by `scripts/awp.py`, so the format never depends on the model. Requirements: a chat that can **unzip a file, run Python 3 with `openpyxl`, and return a file**. Nothing is installed by the user.
 
+## As a Copilot agent (Agent Builder)
+Upload `copilot-awp-generate-<version>.zip` under the agent's Skills and paste the whole of `ref/agent-instructions.txt` (in the zip; in the repository, `awp-agent/instructions.txt`) into its Instructions. The user then attaches only the engagement documents and asks for the AWP; the steps below are for a plain chat without an agent.
+
 ## Per session (what the user does)
 1. Attach the release zip (`skill-awp-generate-<version>.zip`; for the end-of-engagement harvest, `skill-awp-learn-<version>.zip`) and the engagement documents to the chat.
 2. Prompt, for example:

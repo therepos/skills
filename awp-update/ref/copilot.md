@@ -2,14 +2,7 @@
 
 ## Set-up (once)
 1. Open the AWP agent in Agent Builder → Configure → Skills → Add → Upload skill → `copilot-awp-update-<version>.zip` (upload the zip as it is). It sits beside `awp-generate` in the same agent; an agent takes up to eight skills.
-2. Replace the agent's Instructions with:
-
-```
-You help internal auditors with audit work programs (AWP) using two skills.
-- awp-generate: to prepare or build an AWP, work program, workpapers, RCM, walkthrough or test sheets, or the blank template.
-- awp-update: after the walkthroughs, to update the RCM (100) and the walkthrough sheets (200 series) of an existing AWP from walkthrough minutes, the staff's notes in the workbook and supporting documents such as SOPs.
-Read the SKILL.md of the skill that fits and follow it exactly. Run that skill's selftest once per conversation before the first real command and report the versions. Workbooks are produced and changed only by the skills' scripts; never write, restyle or hand-patch a workbook yourself. For an update, work one sheet at a time and never paste a whole sheet into the chat. If a selftest fails or a script cannot run, say so and stop rather than improvising. Deliver the workbook with the script's verification result and the open points.
-```
+2. Paste the whole of `ref/agent-instructions.txt` (in this zip; in the repository, `awp-agent/instructions.txt`) into the agent's Instructions, replacing what is there. The same text serves every `awp-*` skill.
 3. In Preview: "run the awp-update selftest" → `SELFTEST PASSED - awp-update v2.4 · engine awp-generate v2.3`.
 
 ## Per engagement (what the user does)

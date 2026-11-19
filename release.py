@@ -10,6 +10,7 @@ What goes into the zip: the skill folder as it is in the repository, plus whatev
 (users only ever have the zip, never the repository):
   - any skill whose name starts with "awp-"  gets a copy of awp-lib/ as <skill>/lib/ (not awp-update: it reads no library)
   - awp-learn and awp-update                   get a copy of awp-generate/scripts/awp.py (their engine)
+  - every "awp-" skill                         gets awp-agent/instructions.txt as ref/agent-instructions.txt (the Copilot agent's instructions)
 The zip unpacks to a single folder named after the skill; SKILL.md is its entry point.
 In the zip, the description in SKILL.md starts with the version ("v2.3 - Build ...") so that a skills list shows which release is installed.
 Also writes dist/copilot-<skill>-<version>.zip for Microsoft 365 Copilot Agent Builder's "Upload skill": the same files
@@ -31,6 +32,8 @@ def build(skill, version):
     open(md, 'w', encoding='utf-8', newline='\n').write(f'{head}{sep}v{version} - {rest}')
     if skill.startswith('awp-') and skill != 'awp-update':
         shutil.copytree(os.path.join(ROOT, 'awp-lib'), os.path.join(dst, 'lib'), ignore=shutil.ignore_patterns('README.md'))
+    if skill.startswith('awp-'):                                        # the agent instructions travel with every awp-* skill
+        shutil.copy(os.path.join(ROOT, 'awp-agent', 'instructions.txt'), os.path.join(dst, 'ref', 'agent-instructions.txt'))
     if skill in ('awp-learn', 'awp-update'):
         shutil.copy(os.path.join(ROOT, 'awp-generate', 'scripts', 'awp.py'), os.path.join(dst, 'scripts', 'awp.py'))
     os.makedirs(os.path.join(ROOT, 'dist'), exist_ok=True)
