@@ -11,6 +11,7 @@ What goes into the zip: the skill folder as it is in the repository, plus whatev
   - any skill whose name starts with "awp-"  gets a copy of awp-lib/ as <skill>/lib/ (not awp-update: it reads no library)
   - awp-learn and awp-update                   get a copy of awp-generate/scripts/awp.py (their engine)
 The zip unpacks to a single folder named after the skill; SKILL.md is its entry point.
+In the zip, the description in SKILL.md starts with the version ("v2.3 - Build ...") so that a skills list shows which release is installed.
 Also writes dist/copilot-<skill>-<version>.zip for Microsoft 365 Copilot Agent Builder's "Upload skill": the same files
 with SKILL.md at the zip root, no directory entries and no Unix attributes (Agent Builder rejects zips that have them).
 Also writes an extension-less 7z copy named YYYYMMDD<letter> when py7zr is installed (for chats that strip extensions).
@@ -24,6 +25,10 @@ def build(skill, version):
     if not os.path.isdir(src) or not os.path.exists(os.path.join(src, 'SKILL.md')): raise SystemExit(f'{skill}: no such skill folder with a SKILL.md')
     stage = os.path.join(ROOT, 'dist', '_stage'); shutil.rmtree(stage, ignore_errors=True)
     dst = os.path.join(stage, skill); shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.DS_Store'))
+    md = os.path.join(dst, 'SKILL.md'); txt = open(md, encoding='utf-8').read()          # the version leads the description, so a skills list that shows only the description shows which release is installed
+    head, sep, rest = txt.partition('\ndescription: ')
+    if not sep or not head.startswith('---'): raise SystemExit(f'{skill}/SKILL.md: front matter with a "description:" line not found')
+    open(md, 'w', encoding='utf-8', newline='\n').write(f'{head}{sep}v{version} - {rest}')
     if skill.startswith('awp-') and skill != 'awp-update':
         shutil.copytree(os.path.join(ROOT, 'awp-lib'), os.path.join(dst, 'lib'), ignore=shutil.ignore_patterns('README.md'))
     if skill in ('awp-learn', 'awp-update'):
