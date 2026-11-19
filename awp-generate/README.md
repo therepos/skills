@@ -1,6 +1,6 @@
 # awp-generate — maintainers' notes (ships with the release; engagement users can ignore it)
 
-Current: **awp-generate v2.2** · core v1 · pack commercial-leasing v1. Versions live inside the files (`VERSION` in the script, `"version"` in each library); file names never change. History is GitHub; a release is `python release.py awp-generate <version>` from the repository root, which zips this folder with a copy of `../awp-lib/` as `lib/`.
+Current: **awp-generate v2.3** · core v1 · pack commercial-leasing v1. Versions live inside the files (`VERSION` in the script, `"version"` in each library); file names never change. History is GitHub; a release is `python release.py awp-generate <version>` from the repository root, which zips this folder with a copy of `../awp-lib/` as `lib/`.
 
 ## Layout (repository)
 ```
