@@ -23,6 +23,7 @@ One JSON file per sheet keeps each step small: `A201.json`, `A202.json` … and 
 | `op` | Address | Fields in `set` | Notes |
 |---|---|---|---|
 | `background` | `sheet` | — use `"text"` instead of `set` | `"mode": "append"` adds a paragraph (usual: what the walkthrough confirmed, changes in the period); default `replace` rewrites the whole background (give the full text) |
+| `section` | `sheet`, `"section": "<start of the existing section title>"` | `title` | renames a sub-section, e.g. to drop a planning label (`3.1 Collection (expected process)` → `3.1 Collection`) |
 | `activity` | `sheet`, `"no"` | `activity`, `performed_by`, `frequency`, `control`, `owner`, `classification`, `type`, `de_finding`, `document` | give only the fields that change; a field you give replaces the whole cell |
 | `add_activity` | `sheet`, `"after": <activity no>` or `"section": "<start of an existing section title>"` | all of the above; `de_finding` optional | the script assigns the next free control number (`A203-6`); you may ask for a number with `"control_ref"` in `set` if it is free. A new sub-section: `"section": "3.4 Title", "new_section": true` |
 | `remove_activity` | `sheet`, `"no"` | — | only when the activity does not exist at this client. Its control number is taken out of the RCM and the questions automatically (logged) |
@@ -40,8 +41,18 @@ Control numbers of existing controls never change. Testing Result in the RCM is 
 - **Splitting a row.** Keep a library row whole when one person performs both parts and the outcome is the same. Split it when the parts have different owners or different design conclusions: the original row keeps its control number and the part that control describes; the other part becomes an `add_activity` with a new number.
 
 ## Wording
-- **Activity**: who does what, when, in which system, with which document; present tense; one activity per row; roles, never names. Write what the walkthrough established, not what the library assumed.
-- **Control**: what prevents or detects the risk and how it is evidenced. Where there is none: `No control is in place: <what happens instead>.`
+### From the expected process to the actual one
+A sheet built before the walkthrough describes what we assumed, and may say so (`Expected process: …`, `Expected: …`, `Expected control: …`, `(expected)`). After the walkthrough, everything the sources cover is stated as fact and the label is removed — in the background (`replace`), the section titles (`section`), and the activity and control of each row. `show` tags what still carries a label with `PLANNING WORDING`; `check` refuses new text that still says "Expected …" and warns on "should", "is expected to", "will be". What the sources do not cover stays as it is and is reported as still open: do not strip the label from a row you could not confirm.
+
+- **Activity** — the step: `<role> <does what> <when or on what trigger> <in which system or on which document>.` Present tense; one activity per row; roles, never names. Write what the walkthrough established, not what the library assumed.
+- **Control** — the check within or after the step, written so that a tester knows what to look for: `<role, different from the doer where that matters> <reviews / approves / reconciles / matches / restricts> <what> <against what criterion or limit> <how often or at what point>, evidenced by <signature, system log, email, report>.` State a control the way it operates, even when it is weaker than the SOP; the weakness goes in the design-effectiveness finding. Where there is none: `No control is in place: <what happens instead>.`
+
+| | Before the walkthrough | After, from the minutes |
+|---|---|---|
+| Activity | Expected: The ageing report is generated every month and reviewed. | The Accounts Executive runs the accounts receivable ageing from the property management system at each month end, after billing closes, and emails it to the Finance Manager and the Leasing Manager. |
+| Control | Expected control: The ageing report is reviewed and signed every month. | The Finance Manager reviews the monthly ageing for balances over 30 days and replies by email where she has comments. The review is not signed and leaves no evidence when there are no comments. |
+| Finding | (blank) | Design gap: the Finance Manager's review of the ageing is not evidenced, contrary to SOP 8.1, so that a missed review would not be detected. |
+
 - **Performed by / Owner**: role titles. **Frequency**: `As and when required`, `Daily`, `Weekly`, `Monthly`, `Quarterly`, `Annually`, `One-off`. **Classification**: `Preventive` / `Detective`. **Type**: `Manual` / `IT` / `Manual and IT`.
 - **Walkthrough document**: change it only when a source shows that a document was sighted, obtained or promised (`Refund deposit forms for March 2027, sighted` · `AR ageing for September, requested from the Accounts Executive`); otherwise leave the planned document as it is.
 - **Background**: `append` for what the walkthrough adds; `replace` (full text) when the existing background says something the sources contradict.
@@ -91,12 +102,13 @@ and in `A100.json`, for the risks `show` listed under that sheet:
 - a change without `source` or `basis`, or with a source id the file does not declare;
 - overwriting a staff response without `mode`;
 - a new activity or question with required fields missing (they would show as `[placeholders]`);
+- new activity, control, background or section-title text that still carries a planning label ("Expected …");
 - a control number or test reference that does not exist after the update; a control number used twice;
 - text that still holds a `{TOKEN}` or a `[placeholder]`;
 - a change to a test sheet on which work is already recorded;
 - writing over the workbook you were given.
 
-Warnings to read: a design-effectiveness cell that loses its prior-year observation; a risk left without a control; an RCM audit strategy that quotes steps differently from its test; classification or type outside the house values.
+Warnings to read: "should" / "is expected to" / "will be" in an activity or control; a design-effectiveness finding on a row that still reads "Expected …"; a design-effectiveness cell that loses its prior-year observation; a risk left without a control; an RCM audit strategy that quotes steps differently from its test; classification or type outside the house values.
 
 ## What the script guarantees
 - Only the sheets with changes are rewritten, with the same builders as awp-generate: same columns, merges, fonts, borders, widths and row heights. Scope, the index sheets, untouched walkthrough sheets, test sheets and the DA sheet are not touched.
