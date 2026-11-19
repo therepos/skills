@@ -1,5 +1,5 @@
 """
-update.py  v2.1 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
+update.py  v2.2 - update the RCM (100) and walkthrough (200) sheets of an AWP after the walkthrough (skill awp-update).
 
 Run from the folder that contains SKILL.md:
 
@@ -21,7 +21,7 @@ Only dependency: openpyxl. Shares its engine with awp-generate: scripts/awp.py n
 import copy, json, os, re, sys, zipfile, datetime as dt, importlib.util
 from collections import Counter
 
-VERSION = '2.1'
+VERSION = '2.2'
 HERE = os.path.dirname(os.path.abspath(__file__)); SKILL = os.path.dirname(HERE)
 try: sys.stdout.reconfigure(errors='replace')
 except Exception: pass
@@ -197,6 +197,11 @@ def show(path, sheets):
         for q in w['questions']:
             L.append(f"question {q['_k']} | control {q.get('control_ref') or '(none)'} | interviewee: {v(q.get('interviewee'))}")
             L += [f'    {f}: {v(q.get(f))}' for f in ('question', 'why', 'documents', 'response')]
+        if w.get('expected'):
+            L.append(f'INTERVIEW CHECKLIST (tab {qs}) - what we expected at planning and what the team concluded in the session; the yardstick for the design-effectiveness findings')
+            for ref, e in w['expected'].items():
+                L.append(f"control {ref} | in place? {v(e.get('in_place'))}")
+                L += [f"    expected activity: {v(e.get('activity'))}", f"    expected control: {v(e.get('control'))}", f"    gap noted by the team: {v(e.get('gap'))}"]
         notes = other_notes(_, spec, w)
         if notes: L.append('OTHER NOTES THE TEAM TYPED OUTSIDE THE TABLE CELLS, AND COMMENTS - read them as staff notes'); L += ['    ' + x for x in notes]
         rows = [r for s in spec['rcm']['sections'] for r in s['rows'] if set(refs_of(r.get('control_no'))) & {a.get('control_ref') for s2 in w['sections'] for a in s2['activities']}]
@@ -387,6 +392,11 @@ def plan(spec0, updates):
         steps = info['process'].get(w['ref'])
         if not steps: err.append(f"{w['ref']}: \"process\" is missing - before changing rows, list the actual process of this sheet step by step as the sources describe it (\"process\": {{\"{w['ref']}\": [\"step 1 ...\", \"step 2 ...\"]}}), then make the activity rows follow it: rewrite a row, add a row for a step the sheet lacks, remove a row for a step that does not exist")
         elif len(steps) != len(after): warn.append(f"{w['ref']}: you listed {len(steps)} actual process steps but the sheet will have {len(after)} activity rows ({len(before)} before). One row per step: add rows for the missing steps (add_activity), remove rows for steps that do not exist (remove_activity), or correct the list")
+    for w in spec['walkthroughs']:                         # the team's own assessment on the interview tab against the finding being written
+        for a in [a for s in w['sections'] for a in s['activities'] if a.get('control_ref')]:
+            e = (w.get('expected') or {}).get(a['control_ref']) or {}; ip = str(e.get('in_place') or '').strip().lower()
+            if ip.startswith(('no', 'part')) and str(a.get('de_finding') or '').strip().lower().startswith('no design gap') and any(x.get('obj') is a and x['field'] == 'de_finding' for x in log):
+                warn.append(f"{w['ref']} control {a['control_ref']}: the team marked it \"{e.get('in_place')}\" on the interview tab" + (f" (gap noted: {str(e.get('gap'))[:120]})" if not blank(e.get('gap')) else '') + ' but the finding says no design gap - reconcile the two or raise an open point')
     for sh in info['process']:
         if sh not in wts: err.append(f'"process" names {sh}, which is not a walkthrough sheet ({", ".join(wts)})')
     for w in spec['walkthroughs']:                         # a design conclusion on a row that still describes the assumed process
@@ -721,7 +731,7 @@ def selftest():
                 'tests': [{'ref': 'A301', 'no': 1, 'title': 'Approvals', 'objective': 'To check that forms are approved.', 'basis': 'Haphazard.', 'population': 'Forms in the period', 'sample_size': 'Ten', 'source': 'Form listing', 'steps': steps, 'detail_title': 'Form details', 'detail_columns': ['Form', 'Date'], 'n_rows': 3}],
                 'da': {'analytics': [{'sn': 1, 'analytic': 'Forms without approval date.', 'source': 'Form listing', 'identifies': 'Unapproved forms.', 'feeds': 'A301', 'result': '', 'status': 'Planned'}]}}
         src = os.path.join(d, 'awp.xlsx'); awp.build_awp(spec, src)
-        wb = load_workbook(src); t = wb[awp.questions_ref('A')]; t['G10'] = 'Staff note: the Manager approves in the system.'; t['I11'] = 'Side note beside the questions.'
+        wb = load_workbook(src); t = wb[awp.questions_ref('A')]; t['J10'] = 'Staff note: the Manager approves in the system.'; t['K10'] = 'Yes'; t['N11'] = 'Side note beside the questions.'
         ws = wb['A201']; ws['M12'] = 'Side note beside the activities.'; ws['F12'].comment = Comment('Reviewer comment', 'R'); wb.save(src)
         upd = {'sources': {'M1': 'Walkthrough minutes (selftest)', 'N': 'Staff notes in the workbook'}, 'open_points': ['Obtain the approval matrix.'],
                'process': {'A201': ['The Senior Manager approves each form in the system.', 'The Finance Manager reviews the approved forms monthly.', 'The Manager files the form.']}, 'changes': [
@@ -735,7 +745,7 @@ def selftest():
         a, b = load_workbook(src), load_workbook(out); s2 = awp.export_spec(out); w = s2['walkthroughs'][0]; qa, qb = a[awp.questions_ref('A')], b[awp.questions_ref('A')]
         same = all(a[n].cell(r, c).value == b[n].cell(r, c).value for n in ('Scope', 'A', 'A200', 'A300', 'A301', 'A400') for r in range(1, a[n].max_row + 1) for c in range(1, a[n].max_column + 1))
         qsame = [(r, c) for r in range(1, qa.max_row + 1) for c in range(1, qa.max_column + 1) if qa.cell(r, c).value != qb.cell(r, c).value]
-        checks = [good, same, a.sheetnames == b.sheetnames, qsame == [(12, 8), (13, 8), (14, 8)],                                        # questions tab untouched but for the removed control's reference
+        checks = [good, same, a.sheetnames == b.sheetnames, qsame == [(12, 3), (13, 3), (14, 3)],                                        # questions tab untouched but for the removed control's reference
                   b['A201']['M13'].value == 'Side note beside the activities.' and b['A201']['F13'].comment is not None,   # notes and comments move with their row
                   [x.get('control_ref') for x in w['sections'][0]['activities']] == ['A201-1', 'A201-4', 'A201-2'], [x['no'] for x in w['sections'][0]['activities']] == [1, 2, 3],
                   not planned(w['sections'][0]['activities'][0]['activity']), s2['rcm']['sections'][0]['rows'][0]['de_finding'].startswith('No design gap'), str(b['A100']['G9'].value).startswith('='),

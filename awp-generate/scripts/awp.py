@@ -1,5 +1,5 @@
 """
-awp.py  v2.2 - internal-audit work program (AWP) builder: compose, validate, build, verify (skill awp-generate).
+awp.py  v2.3 - internal-audit work program (AWP) builder: compose, validate, build, verify (skill awp-generate).
 
 Run from the folder that contains SKILL.md:
 
@@ -26,7 +26,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string
 
-VERSION = '2.2'
+VERSION = '2.3'
 HERE = os.path.dirname(os.path.abspath(__file__))                       # .../<skill>/scripts
 SKILL = os.path.dirname(HERE)                                            # .../<skill>
 LIB_DIRS = [os.path.join(SKILL, 'lib'), os.path.join(os.path.dirname(SKILL), 'awp-lib')]   # release zip layout, then repository layout
@@ -154,26 +154,48 @@ def build_walkthrough(wb, spec, P, wt):
             fit_height(ws, r, [(vals[1], 42.6), (vals[5], 50.4), (vals[9], 59.1), (vals[2], 19), (vals[10], 16)]); r += 1; n += 1
     widths(ws, {'A': 12.6, 'B': 42.6, 'C': 19, 'D': 19.1, 'E': 16, 'F': 50.4, 'G': 16.1, 'H': 16.6, 'I': 12.9, 'J': 59.1, 'K': 16.1}); ws.freeze_panes = 'A10'; finish(ws)
 
-QUESTIONS_TITLE = 'Walkthrough questions for the team lead (to be used during the walkthrough sessions; one tab for the whole process)'
+QUESTIONS_TITLE = 'Walkthrough interview: expected controls and questions for the team lead (one tab for the whole process; to be completed during the walkthrough sessions)'
+Q_HEADERS = ['No.', 'WP Ref', 'Control Reference No.', 'Expected activity', 'Expected control', 'Question', 'Why we are asking, including the prior-year context', 'Documents to request during the session',
+             'Proposed interviewee', 'Response noted during the walkthrough', 'In place? (Yes / Partly / No)', 'Gap noted']
+Q_WIDTHS = [12.6, 9, 14, 45, 45, 55, 40, 28, 16, 60, 13, 40]
 def questions_ref(P): return f'{P}200Q'
+def interview_rows(wt):
+    """The interview tab's rows for one walkthrough sheet: each expected control once, with the questions that test it kept together, in interview order;
+    then the controls nobody asks about (still checklist lines) - yields (control ref, question or None, first row of the control)."""
+    acts = {a['control_ref']: a for s in wt.get('sections') or [] for a in s.get('activities') or [] if a.get('control_ref')}; exp = wt.get('expected') or {}
+    qs = wt.get('questions') or [{}, {}, {}]; done = set(); rows = []
+    for q in qs:
+        ref = q.get('control_ref') or ''
+        if ref and (ref in acts or ref in exp):
+            if ref in done: continue
+            done.add(ref); rows += [(ref, x, i == 0) for i, x in enumerate(x for x in qs if (x.get('control_ref') or '') == ref)]
+        else: rows.append((ref, q, False))
+    rows += [(ref, None, True) for ref in list(acts) + [r for r in exp if r not in acts] if ref not in done and not done.add(ref)]
+    return rows, acts, exp
 def build_questions(wb, spec, P):
-    """One tab with the walkthrough questions of every sub-process, grouped by walkthrough sheet. The team's notes go in 'Response noted during the walkthrough'."""
-    name = questions_ref(P); ws = wb.create_sheet(name); ref_box(ws, 'H', name); header(ws, spec, P)
+    """The walkthrough interview tab: what we expect (activity and control, frozen at planning), the questions, and what the team heard and concluded.
+    The walkthrough sheets are rewritten to the actual process after the walkthrough; this tab keeps the expectation they are measured against."""
+    name = questions_ref(P); ws = wb.create_sheet(name); n = len(Q_HEADERS); last = get_column_letter(n); ref_box(ws, last, name); header(ws, spec, P)
     put(ws, 'A7', QUESTIONS_TITLE, F(True, WHITE), F_BAND, TOP, B_THIN)
-    for col in 'BCDEFGH': ws[f'{col}7'].fill = F_BAND; ws[f'{col}7'].border = B_THIN
-    ws.merge_cells('A7:H7')
-    hdrs = ['No.', 'WP Ref', 'Question', 'Why we are asking, including the prior-year context', 'Documents to request during the session', 'Proposed interviewee', 'Response noted during the walkthrough', 'Control Reference No.']
-    for j, h in enumerate(hdrs): put(ws, f'{get_column_letter(j+1)}8', h, F(True), F_HDR, CTRW, B_THIN)
-    ws.row_dimensions[8].height = 22.5; r = 9; n = 1
+    for j in range(2, n + 1): ws.cell(7, j).fill = F_BAND; ws.cell(7, j).border = B_THIN
+    ws.merge_cells(f'A7:{last}7')
+    for j, h in enumerate(Q_HEADERS): put(ws, f'{get_column_letter(j+1)}8', h, F(True), F_DETAIL if j >= 9 else F_HDR, CTRW, B_THIN)
+    ws.row_dimensions[8].height = 33.75; r = 9; k = 1
     for wt in spec['walkthroughs']:
         put(ws, f'A{r}', f"{wt['ref']}  {ph(wt.get('title'), 'Sub-process title')}", F(True), F_SECTION, TOP, B_THIN)
-        for col in 'BCDEFGH': ws[f'{col}{r}'].fill = F_SECTION; ws[f'{col}{r}'].border = B_THIN
-        ws.merge_cells(f'A{r}:H{r}'); ws.row_dimensions[r].height = 13.5; r += 1
-        for q in wt.get('questions') or [{}, {}, {}]:
-            vals = [n, wt['ref'], ph(q.get('question'), 'Open question that makes the interviewee describe the step'), ph(q.get('why'), 'Why we ask - the risk, the prior-year point or the change we want to understand'), ph(q.get('documents'), 'Documents to request'), ph(q.get('interviewee'), 'Interviewee'), q.get('response') or '', q.get('control_ref') or '']
-            for j, (v, al) in enumerate(zip(vals, [CTR, CTR, LEFTW, LEFTW, LEFTW, CTRW, LEFTW, CTRW])): put(ws, f'{get_column_letter(j+1)}{r}', v, F(True, RED) if j in (1, 7) else F(), align=al, border=B_THIN)
-            fit_height(ws, r, [(vals[2], 60), (vals[3], 50), (vals[4], 30), (vals[6], 70)]); r += 1; n += 1
-    widths(ws, {'A': 12.6, 'B': 9, 'C': 60, 'D': 50, 'E': 30, 'F': 16, 'G': 70, 'H': 16.1}); ws.freeze_panes = 'D9'; finish(ws)
+        for j in range(2, n + 1): ws.cell(r, j).fill = F_SECTION; ws.cell(r, j).border = B_THIN
+        ws.merge_cells(f'A{r}:{last}{r}'); ws.row_dimensions[r].height = 13.5; r += 1
+        rows, acts, exp = interview_rows(wt)
+        for ref, q, first in rows:
+            e = exp.get(ref) or {}; a = acts.get(ref) or {}; pick = lambda f: (e.get(f) if e.get(f) not in (None, '') else a.get(f)) or ''
+            qq = q or {}
+            vals = [k, wt['ref'], ref, pick('activity') if first else '', pick('control') if first else '',
+                    '' if q is None else ph(qq.get('question'), 'Open question that makes the interviewee describe the step'), '' if q is None else ph(qq.get('why'), 'Why we ask - the risk, the prior-year point or the change we want to understand'),
+                    '' if q is None else ph(qq.get('documents'), 'Documents to request'), '' if q is None else ph(qq.get('interviewee'), 'Interviewee'), qq.get('response') or '', (e.get('in_place') or '') if first else '', (e.get('gap') or '') if first else '']
+            aligns = [CTR, CTR, CTRW, LEFTW, LEFTW, LEFTW, LEFTW, LEFTW, CTRW, LEFTW, CTRW, LEFTW]
+            for j, (v, al) in enumerate(zip(vals, aligns)): put(ws, f'{get_column_letter(j+1)}{r}', v, F(True, RED) if j in (1, 2) else F(), align=al, border=B_THIN)
+            fit_height(ws, r, [(vals[3], 45), (vals[4], 45), (vals[5], 55), (vals[6], 40), (vals[7], 28), (vals[9], 60), (vals[11], 40)]); r += 1; k += 1
+    widths(ws, {get_column_letter(j+1): w for j, w in enumerate(Q_WIDTHS)}); ws.freeze_panes = 'D9'; finish(ws)
 
 def test_layout(t):
     detail = t.get('detail_columns') or ['Document / item', 'Reference', 'Date', 'Amount (S$)']
@@ -289,7 +311,7 @@ def build_awp(spec, out_path):
     build_index(wb, spec, P, P, 'Index', [('Risk and control matrix', f'{P}100'), ('Process walkthrough', f'{P}200'), ('Testing of controls', f'{P}300'), ('Data Analytics', da_ref)], 'G', {'A': 12, 'B': 64, 'C': 8.6, 'D': 12.1, 'E': 7.4, 'F': 8.4, 'G': 14.6}, stamp=st)
     concl = {t['ref']: test_layout(t)[7] for t in spec['tests']}
     build_rcm(wb, spec, P, concl)
-    build_index(wb, spec, P, f'{P}200', 'Process walkthrough', [('Walkthrough questions (all sub-processes)', questions_ref(P))] + [(wt.get('index_text') or ph(wt.get('title'), 'Sub-process'), wt['ref']) for wt in spec['walkthroughs']], 'G', {'A': 13.6, 'B': 64, 'C': 18.9, 'D': 7, 'E': 8.4, 'F': 7.4, 'G': 11})
+    build_index(wb, spec, P, f'{P}200', 'Process walkthrough', [('Walkthrough interview: expected controls and questions (all sub-processes)', questions_ref(P))] + [(wt.get('index_text') or ph(wt.get('title'), 'Sub-process'), wt['ref']) for wt in spec['walkthroughs']], 'G', {'A': 13.6, 'B': 64, 'C': 18.9, 'D': 7, 'E': 8.4, 'F': 7.4, 'G': 11})
     build_questions(wb, spec, P)
     for wt in spec['walkthroughs']: build_walkthrough(wb, spec, P, wt)
     build_index(wb, spec, P, f'{P}300', 'Testing', [(ph(t.get('title'), 'Test title'), t['ref']) for t in spec['tests']], 'E', {'A': 13.6, 'B': 64, 'C': 18.9, 'D': 7, 'E': 9.7, 'F': 11})
@@ -756,15 +778,16 @@ def export_spec(path, report=None):
         if hr:
             h = _hdr_map(ws, hr); col = lambda pref: next((v for k, v in h.items() if k.startswith(pref)), None)
             cq, cwp, cw, cd, ci, crsp, cc = col('question'), col('wp ref'), col('why'), col('documents'), col('proposed interviewee'), col('response'), col('control reference')
+            cea, cec, cip, cgap = col('expected activity'), col('expected control'), col('in place'), col('gap noted')
             for r in range(hr + 1, ws.max_row + 1):
-                a, q = ws.cell(r, 1).value, ws.cell(r, cq).value
-                if q is None:
-                    if isinstance(a, str) and a.split() and a.split()[0] in by_ref: cur = by_ref[a.split()[0]]
-                    continue
-                wp = str(ws.cell(r, cwp).value).strip() if cwp and ws.cell(r, cwp).value is not None else None
-                wt = by_ref.get(wp) or cur
+                a, q = ws.cell(r, 1).value, ws.cell(r, cq).value; g = lambda c: ws.cell(r, c).value if c else None
+                if isinstance(a, str) and a.split() and a.split()[0] in by_ref and q is None and g(cc) is None: cur = by_ref[a.split()[0]]; continue
+                wp = str(g(cwp)).strip() if g(cwp) is not None else None
+                wt = by_ref.get(wp) or cur; ref = str(g(cc)).strip() if g(cc) is not None else None
+                if wt is not None and ref and any(g(c) not in (None, '') for c in (cea, cec, cip, cgap)):   # the expectation and the team's assessment, kept per control
+                    wt.setdefault('expected', {}).setdefault(ref, {'activity': g(cea), 'control': g(cec), 'in_place': g(cip), 'gap': g(cgap)})
+                if q is None: continue
                 if wt is None: report.append(f'{ws.title} row {r}: question not under any walkthrough sheet'); continue
-                g = lambda c: ws.cell(r, c).value if c else None
                 wt['questions'].append({'no': a, 'question': q, 'why': g(cw), 'documents': g(cd), 'interviewee': g(ci), 'response': g(crsp), 'control_ref': g(cc)})
         else: report.append(f'{ws.title}: question table not found')
     for name in wb.sheetnames:

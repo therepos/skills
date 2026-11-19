@@ -111,11 +111,12 @@ and in `A100.json`, for the risks `show` listed under that sheet:
 - a change to a test sheet on which work is already recorded;
 - writing over the workbook you were given.
 
-Warnings to read: a different number of activity rows than process steps listed; "should" / "is expected to" / "will be" in an activity or control; a design-effectiveness finding on a row that still reads "Expected …"; a design-effectiveness cell that loses its prior-year observation; a risk left without a control; an RCM audit strategy that quotes steps differently from its test; classification or type outside the house values.
+Warnings to read: a finding of no design gap on a control the team marked No or Partly on the interview tab; a different number of activity rows than process steps listed; "should" / "is expected to" / "will be" in an activity or control; a design-effectiveness finding on a row that still reads "Expected …"; a design-effectiveness cell that loses its prior-year observation; a risk left without a control; an RCM audit strategy that quotes steps differently from its test; classification or type outside the house values.
 
 ## What the script guarantees
 - The workbook is edited in place. A change writes its cell and nothing else; a new activity or risk inserts one row (styled like its neighbour) and a removed activity deletes one; rows below move with their merged cells, heights, notes and comments. Rows that were written get the row height their text needs.
 - A workbook built before awp-generate 2.2 has its walkthrough questions moved from the foot of each 200 sheet to one tab (`<prefix>200Q`) on `apply`: questions, responses, notes typed around them and any column the team added, as they are. `python scripts/update.py questions AWP.xlsx OUT.xlsx` does only that.
+- The interview tab is the frozen record of the expectation: the 200 sheets are rewritten to the actual process, the tab's "Expected activity" and "Expected control" stay as they were at planning, and the design-effectiveness finding states the difference.
 - Nothing else is touched: the walkthrough questions and responses (on their own tab, or at the foot of each 200 sheet in older workbooks), text typed beside a table, comments, highlighting, and every other sheet. Works on workbooks built by any awp-generate version.
 - The hidden `_build` sheet gets a line recording the update. `verify` (the same checks as awp-generate) runs on the result.
 - The update log has five sheets: Changes (sheet, item, field, before, after, source, basis), Sources, Open points, Still open, Warnings.

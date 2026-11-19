@@ -26,13 +26,15 @@ Header row 7: `S/N | Sub-process | Risk | Control No. | Finding for Design Effec
 - Sub-section rows merged A:K, bold, no fill (`1.1 Policies and procedures and Delegation of Authority`). Activity rows numbered continuously across sub-sections; control refs `<sheet>-<n>` bold red; a row may simply cross-refer (`Please refer to <A302> …`).
 - Freeze panes A10. Widths 12.6 / 42.6 / 19 / 19.1 / 16 / 50.4 / 16.1 / 16.6 / 12.9 / 59.1 / 16.1.
 
-## A200Q — Walkthrough questions (one tab for the whole process)
-- Row 7 merged A:H: `Walkthrough questions for the team lead (…)` — fill 808080, white bold.
-- Row 8 header: `No. | WP Ref | Question | Why we are asking, including the prior-year context | Documents to request during the session | Proposed interviewee | Response noted during the walkthrough | Control Reference No.`
-- One group per walkthrough sheet, in sheet order: a group row merged A:H (fill DCE6F1, bold) `A202  <sub-process title>`, then its questions. Questions are numbered continuously over the whole tab; `WP Ref` and `Control Reference No.` bold red.
-- The team types its notes in `Response noted during the walkthrough`. The walkthrough sheets carry no questions, so updating them after the walkthrough (awp-update) never touches the notes.
-- Listed first on the `A200` index. Freeze panes D9. Widths 12.6 / 9 / 60 / 50 / 30 / 16 / 70 / 16.1.
-- Workbooks built before v2.2 carry the questions at the foot of each walkthrough sheet instead; `export`, `verify` and awp-update read both.
+## A200Q — Walkthrough interview (one tab for the whole process)
+- Purpose: the checklist and questionnaire for the walkthrough sessions, and afterwards the record of what was expected. The walkthrough sheets are drafted with the expected process and rewritten to the actual process after the walkthrough (awp-update); this tab is not rewritten, so the expectation stays beside what the team heard.
+- Row 7 merged A:L: title band — fill 808080, white bold.
+- Row 8 header (height 33.75): `No. | WP Ref | Control Reference No. | Expected activity | Expected control | Question | Why we are asking, including the prior-year context | Documents to request during the session | Proposed interviewee | Response noted during the walkthrough | In place? (Yes / Partly / No) | Gap noted`. The last three are for the team to complete (header fill B7DEE8).
+- One group per walkthrough sheet, in sheet order: a group row merged A:L (fill DCE6F1, bold) `A202  <sub-process title>`, then its rows.
+- Within a group, each control appears once: its first row carries the expected activity and control (taken from the walkthrough sheet at build time) and the `In place?` / `Gap noted` cells; the questions that test it follow on the next rows. Questions on no particular control keep their place in the interview order. A control nobody asks about still gets a checklist row without a question.
+- Rows are numbered continuously over the whole tab; `WP Ref` and `Control Reference No.` bold red.
+- Listed first on the `A200` index. Freeze panes D9. Widths 12.6 / 9 / 14 / 45 / 45 / 55 / 40 / 28 / 16 / 60 / 13 / 40.
+- Older workbooks: v2.2 has the questions tab without the expected and checklist columns; before v2.2 the questions sit at the foot of each walkthrough sheet. `export`, `verify` and awp-update read all three.
 
 ## A301… — Test sheet
 - Row 7: `Test n` in A and the title in B on an 808080 band with white bold text across the table width.
